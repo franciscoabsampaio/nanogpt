@@ -9,7 +9,11 @@ def main():
     data = get_input_data()
     
     enc, vocabulary_size = get_encoder('char', vocabulary=data['vocabulary'])
-    tensor = torch.tensor(enc.encode(data['text']), dtype=torch.int64)
+    tensor = torch.tensor(
+        enc.encode(data['text']),
+        dtype=torch.int64  # We're using integers because each char will be mapped to an int
+    )
+    print(tensor)
 
     data_train, data_test = split_train_test(tensor)
 
