@@ -13,17 +13,17 @@ def main():
         enc.encode(data['text']),
         dtype=torch.int64  # We're using integers because each char will be mapped to an int
     )
-    print(tensor)
 
     data_train, data_test = split_train_test(tensor)
 
     torch.manual_seed(42)
-    xb, yb = get_batch(data_train)
-    print(xb.shape, yb.shape)
+    x_batch, y_batch = get_batch(data_train)
+    print(x_batch, y_batch)
 
     m = BigramLanguageModel(vocabulary_size)
-    logits, loss = m(xb, yb)
+    logits, loss = m(x_batch, y_batch)
     print(loss)
+
 
 if __name__ == "__main__":
     main()
