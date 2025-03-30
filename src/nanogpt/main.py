@@ -21,8 +21,8 @@ def main():
 
     block_size = len(tensor_train) - 1
     tensor_x, tensor_y = get_batch(tensor_train, batch_size=1, block_size=block_size)
+    
     bigrams = torch.stack((tensor_x[:, :-1], tensor_y[:, :-1]), dim=-1)
-
     # Reshape to [num_bigrams, 2] for counting
     bigrams = bigrams.view(-1, 2)
 
