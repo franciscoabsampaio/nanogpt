@@ -11,6 +11,8 @@ class CharEncoder:
         return [self.str_to_int[c] for c in string]
     
     def decode(self, integers: list[int]) -> str:
+        if isinstance(integers, int):
+            integers = [integers]
         return ''.join([self.int_to_str[i] for i in integers])
 
 

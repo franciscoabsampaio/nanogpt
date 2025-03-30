@@ -3,9 +3,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-torch.manual_seed(42)
-
-
 def compute_loss(logits, targets):
     """
     Cross-entropy loss is used to measure the difference between the predicted
