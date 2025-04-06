@@ -6,7 +6,7 @@ Go back to:
 - makemore:
   - Part 1: 01h32m00s.
 - Let's build GPT: currently at 32:29.
-- Let's build the GPT tokenizer: 8m15s
+- Let's build the GPT tokenizer: 15m00s.
 - Train sentencepiece model.
 
 ## Statistical Assumptions

@@ -28,3 +28,8 @@ def get_encoder(tokenizer: str = 'tiktoken', vocabulary: str = None) -> list[int
         return CharEncoder(vocabulary), len(vocabulary)
     else:
         raise ValueError(f"Unknown tokenizer: {tokenizer}")
+
+
+def tokenize():
+    ord()  # gets the unicode code point of a character
+    "string".encode('utf-8')  # encodes a string to bytes
