@@ -19,7 +19,7 @@ Andrej Karpathy's videos:
 
 - Intro to neural networks and backpropagation: ✅
 - makemore:
-  - Part 1: 01h32m00s.
+  - Part 1: 01h54m.
 - Let's build GPT: currently at 32:29.
 - Let's build the GPT tokenizer: ✅
 - Train sentencepiece model.

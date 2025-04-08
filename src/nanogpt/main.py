@@ -8,6 +8,8 @@ import sys
 
 
 def main():
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # Set device to GPU if available
+    
     data = get_input_data()
     
     enc, vocabulary_size = get_encoder('tiktoken', vocabulary=data['vocabulary'])
@@ -18,9 +20,9 @@ def main():
 
     tensor_train, tensor_test = split_train_test(tensor)
 
-    # torch.manual_seed(42)
+    torch.manual_seed(42)
 
-    block_size = len(tensor_train) - 1
+    block_size = 100
     tensor_x, tensor_y = get_batch(tensor_train, batch_size=1, block_size=block_size)
     
     # Neural networks should not receive raw integers as input,
@@ -28,18 +30,43 @@ def main():
     # Instead, we use one-hot encoding to represent the input,
     # but convert it to a float tensor.
     tensor_x_onehot = f.one_hot(tensor_x, num_classes=vocabulary_size).float()
-    tensor_y_onehot = f.one_hot(tensor_y, num_classes=vocabulary_size).float()
 
-    tensor_neuron_weights = torch.randn((vocabulary_size, vocabulary_size))
+    tensor_neuron_weights = torch.randn((vocabulary_size, vocabulary_size), requires_grad=True)
     tensor_logits = tensor_x_onehot @ tensor_neuron_weights  # log-counts
     # Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
     # we need to exponentiate the logits to get the counts.
+    # Since x is a one-hot vector (ones and zeros),
+    # the neuron weights are, too, log-counts.
     # This is equivalent to applying the softmax function to the logits,
     # essentially converting them to probabilities.
     tensor_counts = tensor_logits.exp()
     # tensor_probabilities = tensor_counts / tensor_counts.sum(dim=-1, keepdim=True)
-    tensor_probabilities = torch.nn.functional.softmax(tensor_counts.float(), dim=0)
+    tensor_probabilities = torch.nn.functional.softmax(tensor_counts.float(), dim=1)
     
+    # We can then compute the negative log loss,
+    # which is what we want to minimize.
+    # A measure of the variance of the weights can be added to the loss function,
+    # effectively minimizing the counts of the most frequent tokens,
+    # forcing the model to learn probabilities that are more uniform,
+    # snoothing the model and preventing overfitting.
+    # This is called regularization.
+    tensor_negative_log_loss = (
+        -tensor_probabilities[0, torch.arange(block_size), tensor_y].log().mean()
+        + 0.01 * (tensor_neuron_weights ** 2).mean()  # 0.01 is the regularization strength, a hyperparameter
+    )
+    print(tensor_negative_log_loss.item())
+
+    tensor_neuron_weights.grad = None
+    tensor_negative_log_loss.backward()
+
+    tensor_neuron_weights.data += -0.5 * tensor_neuron_weights.grad
+
+    tensor_logits = tensor_x_onehot @ tensor_neuron_weights  # log-counts
+    tensor_counts = tensor_logits.exp()
+    tensor_probabilities = torch.nn.functional.softmax(tensor_counts.float(), dim=1)
+    tensor_negative_log_loss = -tensor_probabilities[0, torch.arange(block_size), tensor_y].log().mean()
+    
+    print(tensor_negative_log_loss.item())
     return
     bigrams = torch.stack((tensor_x[:, :-1], tensor_y[:, :-1]), dim=-1)
     # Reshape to [num_bigrams, 2] for counting
