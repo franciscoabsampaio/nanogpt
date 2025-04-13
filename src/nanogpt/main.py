@@ -4,7 +4,7 @@ from nanogpt.token import get_encoder
 from nanogpt.train import split_train_test, get_batch
 import torch
 import torch.nn.functional as f
-import sys
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -18,32 +18,137 @@ def main():
         dtype=torch.int64  # We're using integers because each char will be mapped to an int
     )
 
-    tensor_train, tensor_test = split_train_test(tensor)
+    tensor_train, tensor_test = split_train_test(tensor, train_size=0.8)
+    tensor_validation, tensor_test = split_train_test(tensor_test, train_size=0.5)
+
+    # Initial loss should be, at worst, equivalent to a random guess.
+    # -log(p(x)) = -log(1 / vocabulary_size) = log(vocabulary_size)
+    print(f"Initial loss shouldn't be greater than: {torch.tensor(vocabulary_size).log().item()}")
 
     torch.manual_seed(42)
 
-    block_size = 100
-    tensor_x, tensor_y = get_batch(tensor_train, batch_size=1, block_size=block_size)
-    
-    # Neural networks should not receive raw integers as input,
-    # because they are not normalized.
-    # Instead, we use one-hot encoding to represent the input,
-    # but convert it to a float tensor.
-    tensor_x_onehot = f.one_hot(tensor_x, num_classes=vocabulary_size).float()
+    batch_size = 100  # The number of sequences to process in parallel
+    block_size = 5  # The number of tokens used to predict the next token
+    # tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
 
-    tensor_neuron_weights = torch.randn((vocabulary_size, vocabulary_size), requires_grad=True)
-    tensor_logits = tensor_x_onehot @ tensor_neuron_weights  # log-counts
-    # Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
+    # NOTE: Neural networks should not receive raw integers as input,
+    # because they are not normalized.
+    # 
+    # We *could* use one-hot encoding to represent the input (later converting it to a float tensor):
+    # tensor_x_onehot = F.one_hot(tensor_x, num_classes=vocabulary_size).float()
+    # but this is not efficient for large vocabularies.
+    # 
+    # Instead, we can map the input to a lower-dimensional space using an embedding layer.
+    # This means that one-hot encoding is essentially an embedding layer
+    # where an n-dimensional vector is mapped to another n-dimensional vector.
+    embedding_dims = 1000
+    tensor_embedding_table = torch.randn((vocabulary_size, embedding_dims))
+    number_of_neurons = 1000
+    tensor_weights_1 = torch.randn((embedding_dims * block_size, number_of_neurons))
+    tensor_biases_1 = torch.randn(number_of_neurons)
+    tensor_weights_2 = torch.randn((number_of_neurons, vocabulary_size))
+    tensor_biases_2 = torch.randn(vocabulary_size)
+    list_of_parameters = [
+        tensor_embedding_table,
+        tensor_weights_1,
+        tensor_biases_1,
+        tensor_weights_2,
+        tensor_biases_2
+    ]
+    for p in list_of_parameters:
+        p.requires_grad = True
+
+    def forward_mlp(
+        tensor_x,
+        tensor_y,
+        tensor_embedding_table,
+        tensor_weights_1,
+        tensor_biases_1,
+        tensor_weights_2,
+        tensor_biases_2,
+    ):
+        tensor_embeddings = tensor_embedding_table[tensor_x]  # (batch_size, block_size, embedding_dims)
+        tensor_layer_hidden = f.silu(
+            # Pre-activations
+            tensor_embeddings.view(
+                -1,
+                tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
+            ) @ tensor_weights_1 + tensor_biases_1
+        )
+        tensor_preactivations = tensor_embeddings.view(
+                -1,
+                tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
+            ) @ tensor_weights_1 + tensor_biases_1
+        tensor_logits = tensor_layer_hidden @ tensor_weights_2 + tensor_biases_2
+
+        plt.hist(tensor_preactivations.view(-1).tolist(), 100)
+        plt.savefig("output/histogram_preactivations.png")
+        plt.hist(tensor_layer_hidden.view(-1).tolist(), 100)
+        plt.savefig("output/histogram_hidden_layer.png")
+
+        return f.cross_entropy(tensor_logits, tensor_y).log().mean()
+
+    learning_rate = 0.01
+    loss = 1
+    iterations = 0
+    while loss > 0.1:
+        iterations += 1
+        # Forward
+        tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
+        loss = forward_mlp(
+            tensor_x,
+            tensor_y[:, -1],
+            tensor_embedding_table,
+            tensor_weights_1,
+            tensor_biases_1,
+            tensor_weights_2,
+            tensor_biases_2,
+        )
+
+        # Backward
+        for p in list_of_parameters:
+            p.grad = None
+        loss.backward()
+        # Update
+        for p in list_of_parameters:
+            p.data += -learning_rate * p.grad
+        print(f"batch loss at iteration {iterations}: {loss.item()}")
+        # break
+    
+    tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
+    loss = forward_mlp(
+        tensor_x,
+        tensor_y[:, -1],
+        tensor_embedding_table,
+        tensor_weights_1,
+        tensor_biases_1,
+        tensor_weights_2,
+        tensor_biases_2,
+    )
+    print(f"training loss: {loss.item()}")
+    return
+
+    # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
     # we need to exponentiate the logits to get the counts.
     # Since x is a one-hot vector (ones and zeros),
     # the neuron weights are, too, log-counts.
     # This is equivalent to applying the softmax function to the logits,
     # essentially converting them to probabilities.
-    tensor_counts = tensor_logits.exp()
+    # 
+    # tensor_counts = tensor_logits.exp()
     # tensor_probabilities = tensor_counts / tensor_counts.sum(dim=-1, keepdim=True)
-    tensor_probabilities = torch.nn.functional.softmax(tensor_counts.float(), dim=1)
-    
-    # We can then compute the negative log loss,
+    tensor_probabilities = f.softmax(tensor_logits.float(), dim=1)
+
+    # NOTE: GOAL: Maximize likelihood of the data wrt model parameters
+    # equivalent to mazimizing the log-likelihood of the data (because log is monotonic)
+    # equivalent to minimizing the negative log-likelihood of the data
+    # equivalent to minimizing the average negative log-likelihood of the data
+    # 
+    # NOTE: The logarithm of 0 is infinity and thus undefined,
+    # so we need to add a small value (epsilon) to avoid division by zero
+    # This is called model smoothing or Laplace smoothing
+    # 
+    # NOTE: We can then compute the negative log loss,
     # which is what we want to minimize.
     # A measure of the variance of the weights can be added to the loss function,
     # effectively minimizing the counts of the most frequent tokens,
@@ -51,7 +156,7 @@ def main():
     # snoothing the model and preventing overfitting.
     # This is called regularization.
     tensor_negative_log_loss = (
-        -tensor_probabilities[0, torch.arange(block_size), tensor_y].log().mean()
+        -(tensor_probabilities[0, torch.arange(block_size), tensor_y] + 1e-8).log().mean()
         + 0.01 * (tensor_neuron_weights ** 2).mean()  # 0.01 is the regularization strength, a hyperparameter
     )
     print(tensor_negative_log_loss.item())
@@ -61,38 +166,24 @@ def main():
 
     tensor_neuron_weights.data += -0.5 * tensor_neuron_weights.grad
 
+    # forward
     tensor_logits = tensor_x_onehot @ tensor_neuron_weights  # log-counts
-    tensor_counts = tensor_logits.exp()
-    tensor_probabilities = torch.nn.functional.softmax(tensor_counts.float(), dim=1)
+    tensor_probabilities = f.softmax(tensor_logits.float(), dim=1)
     tensor_negative_log_loss = -tensor_probabilities[0, torch.arange(block_size), tensor_y].log().mean()
     
     print(tensor_negative_log_loss.item())
-    return
-    bigrams = torch.stack((tensor_x[:, :-1], tensor_y[:, :-1]), dim=-1)
-    # Reshape to [num_bigrams, 2] for counting
-    bigrams = bigrams.view(-1, 2)
 
-    # Count unique bigrams
-    tensor_unique_bigrams, tensor_counts = torch.unique(bigrams, return_counts=True, dim=0)
-    
-    
-    next_token = tensor_x[0, torch.randint(1, tensor_x.shape[1], (1,))].item()
-    
-    # GOAL: Maximize likelihood of the data wrt model parameters
-    # equivalent to mazimizing the log-likelihood of the data (because log is monotonic)
-    # eqhjuivalent to minimizing the negative log-likelihood of the data
-    # equivalent to minimizing the average negative log-likelihood of the data
     import time
-    while True:
-        print(enc.decode_single_token_bytes(next_token))
-        mask = tensor_unique_bigrams[:, 0] == next_token
-        matching_bigrams = tensor_unique_bigrams[mask]
-        # NOTE: The logarithm of 0 is infinity and thus undefined,
-        # so we need to add a small value (epsilon) to avoid division by zero
-        # This is called model smoothing or Laplace smoothing
-        matching_probs = tensor_probabilities[mask] + 1e-8
-        sample_idx = torch.multinomial(matching_probs / matching_probs.sum(), num_samples=1).item()
-        next_token = matching_bigrams[sample_idx, 1]
+
+    current_token = tensor_x[0, 0]  # start token
+
+    for _ in range(100):  # generate 100 tokens
+        tensor_x_onehot = f.one_hot(current_token, num_classes=vocabulary_size).float()
+        tensor_logits = tensor_x_onehot @ tensor_neuron_weights
+        tensor_probabilities = f.softmax(tensor_logits.float(), dim=0)
+
+        current_token = torch.multinomial(tensor_probabilities, num_samples=1)[0]
+        print(enc.decode([current_token.item()]), end='', flush=True)
         time.sleep(0.5)
     
     return

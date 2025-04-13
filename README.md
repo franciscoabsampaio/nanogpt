@@ -2,6 +2,23 @@
 
 Building a small language model to study modern LLM architectures.
 
+## Network Initialization
+
+Some care is advised when initializing neural network weights and biases. Nowadays, the most common way to initialize weights is via Kaiming initialization.
+
+However, some advances have also made initialization less relevant:
+
+- Residual connections;
+- Normalization layers, such as batch normalization, group normalization, etc;
+- Better optimizers, such as RMSProp and Adam.
+
+## Observability
+
+Things to monitor:
+
+- Dead neurons.
+- Layer histograms.
+
 ## Statistical Assumptions
 
 ### Softmax
@@ -15,11 +32,19 @@ Softmax is grounded on the following statistical assumptions:
 
 ## References
 
-Andrej Karpathy's videos:
+WIP
 
-- Intro to neural networks and backpropagation: ✅
-- makemore:
-  - Part 1: 01h54m.
-- Let's build GPT: currently at 32:29.
-- Let's build the GPT tokenizer: ✅
-- Train sentencepiece model.
+- **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
+- **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
+- **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
+- **2019**. Edward Yang. *PyTorch internals*. At 0.
+- **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*. At pg 0/11.
+- **2003**. Bengio et. al. *A Neural Probabilistic Language Model*. At pg 7/19.
+
+✅
+
+- **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
+- **2024**. J Carlos Roldán. *What is SwiGLU*.
+- **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
+- **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
