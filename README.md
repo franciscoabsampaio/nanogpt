@@ -38,7 +38,6 @@ WIP
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 0.
-- **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*. At pg 0/11.
 - **2003**. Bengio et. al. *A Neural Probabilistic Language Model*. At pg 7/19.
 
 ✅
@@ -48,3 +47,4 @@ WIP
 - **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
+- **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
