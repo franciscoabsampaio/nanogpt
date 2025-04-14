@@ -32,6 +32,8 @@ Softmax is grounded on the following statistical assumptions:
 
 ## References
 
+Below are most of the references I used for learning about LLMs.
+
 WIP
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
