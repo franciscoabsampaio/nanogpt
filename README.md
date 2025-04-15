@@ -45,7 +45,6 @@ Th is IISTORY?
 
 - Learning rate can be reduced much later.
 - This tokenizer is not suitable, but model still learned something.
-- 
 
 ## Network Initialization
 
