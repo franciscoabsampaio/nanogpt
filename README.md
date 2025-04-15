@@ -46,5 +46,7 @@ WIP
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 - **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
+- **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
