@@ -15,6 +15,8 @@ MLP using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 1400 it
 
 Batch normalization was commented out. Learning rate was reduced by a factor of 10 after 1000 iterations.
 
+Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/catalog/tiny_shakespeare), with a 80/10/10 train/validation/test split. Test split was never used.
+
 #### Parameters
 
 - Total: 20.562.681
@@ -81,7 +83,7 @@ WIP
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
-- **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*. At 17m.
+- **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*. At 24m.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
 
