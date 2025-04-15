@@ -63,8 +63,10 @@ Things to monitor:
 
 - Dead neurons.
 - Layer histograms.
+- Loss.
+- Update to data ratios (how aggressively each parameter is being changed).
 
-## Statistical Assumptions
+## Statistics
 
 ### Softmax
 
