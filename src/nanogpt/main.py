@@ -42,18 +42,26 @@ def main():
     # This means that one-hot encoding is essentially an embedding layer
     # where an n-dimensional vector is mapped to another n-dimensional vector.
     embedding_dims = 1000
+    n_hidden_layer = 1000
+
     tensor_embedding_table = torch.randn((vocabulary_size, embedding_dims))
-    number_of_neurons = 1000
-    tensor_weights_1 = torch.randn((embedding_dims * block_size, number_of_neurons))
-    tensor_biases_1 = torch.randn(number_of_neurons)
-    tensor_weights_2 = torch.randn((number_of_neurons, vocabulary_size))
+    tensor_weights_1 = torch.randn((embedding_dims * block_size, n_hidden_layer))
+    # tensor_biases_1 = torch.randn(n_hidden_layer)
+    tensor_weights_2 = torch.randn((n_hidden_layer, vocabulary_size))
     tensor_biases_2 = torch.randn(vocabulary_size)
+    tensor_batch_normalization_gain = torch.ones((1, n_hidden_layer))
+    tensor_batch_normalization_bias = torch.zeros((1, n_hidden_layer))
+    tensor_batch_normalization_running_mean = torch.zeros((1, n_hidden_layer))
+    tensor_batch_normalization_running_std = torch.ones((1, n_hidden_layer))
+    
     list_of_parameters = [
         tensor_embedding_table,
         tensor_weights_1,
-        tensor_biases_1,
+        # tensor_biases_1,
         tensor_weights_2,
-        tensor_biases_2
+        tensor_biases_2,
+        tensor_batch_normalization_gain,
+        tensor_batch_normalization_bias
     ]
     for p in list_of_parameters:
         p.requires_grad = True
@@ -63,35 +71,56 @@ def main():
         tensor_y,
         tensor_embedding_table,
         tensor_weights_1,
-        tensor_biases_1,
+        # tensor_biases_1,
         tensor_weights_2,
         tensor_biases_2,
+        tensor_batch_normalization_gain,
+        tensor_batch_normalization_bias,
+        tensor_batch_normalization_running_mean,
+        tensor_batch_normalization_running_std,
     ):
         tensor_embeddings = tensor_embedding_table[tensor_x]  # (batch_size, block_size, embedding_dims)
+        
+        # Hidden layer
         tensor_layer_hidden = f.silu(
-            # Pre-activations
+            # Pre-activations (Linear layer)
             tensor_embeddings.view(
                 -1,
                 tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
-            ) @ tensor_weights_1 + tensor_biases_1
+            ) @ tensor_weights_1
         )
-        tensor_preactivations = tensor_embeddings.view(
-                -1,
-                tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
-            ) @ tensor_weights_1 + tensor_biases_1
-        tensor_logits = tensor_layer_hidden @ tensor_weights_2 + tensor_biases_2
 
-        plt.hist(tensor_preactivations.view(-1).tolist(), 100)
-        plt.savefig("output/histogram_preactivations.png")
+        # BatchNorm layer
+        with torch.no_grad():
+            tensor_batch_normalization_running_mean, tensor_batch_normalization_running_std = (
+                # 0.1 is the momentum
+                0.9 * tensor_batch_normalization_running_mean
+                + 0.1 * tensor_layer_hidden.mean(
+                    dim=0, keepdim=True
+                ),
+                0.9 * tensor_batch_normalization_running_std
+                + 0.1 * tensor_layer_hidden.std(
+                    dim=0, keepdim=True
+                )
+            )
+
+        tensor_logits = (
+            # Batch normalization
+            tensor_batch_normalization_gain
+            * (tensor_layer_hidden - tensor_batch_normalization_running_mean)
+            / (tensor_batch_normalization_running_std + 1e-5)
+            + tensor_batch_normalization_bias
+        ) @ tensor_weights_2 + tensor_biases_2
+
         plt.hist(tensor_layer_hidden.view(-1).tolist(), 100)
         plt.savefig("output/histogram_hidden_layer.png")
 
         return f.cross_entropy(tensor_logits, tensor_y).log().mean()
 
-    learning_rate = 0.01
+    learning_rate = 0.0001
     loss = 1
     iterations = 0
-    while loss > 0.1:
+    while iterations < 20 and loss > 0.1:
         iterations += 1
         # Forward
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
@@ -100,9 +129,12 @@ def main():
             tensor_y[:, -1],
             tensor_embedding_table,
             tensor_weights_1,
-            tensor_biases_1,
             tensor_weights_2,
             tensor_biases_2,
+            tensor_batch_normalization_gain,
+            tensor_batch_normalization_bias,
+            tensor_batch_normalization_running_mean,
+            tensor_batch_normalization_running_std,
         )
 
         # Backward
@@ -115,17 +147,36 @@ def main():
         print(f"batch loss at iteration {iterations}: {loss.item()}")
         # break
     
-    tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
-    loss = forward_mlp(
-        tensor_x,
-        tensor_y[:, -1],
-        tensor_embedding_table,
-        tensor_weights_1,
-        tensor_biases_1,
-        tensor_weights_2,
-        tensor_biases_2,
-    )
-    print(f"training loss: {loss.item()}")
+    with torch.no_grad():
+        tensor_x, tensor_y = get_batch(tensor_train, batch_size=len(tensor_train) // 5, block_size=block_size)
+        loss = forward_mlp(
+            tensor_x,
+            tensor_y[:, -1],
+            tensor_embedding_table,
+            tensor_weights_1,
+            tensor_weights_2,
+            tensor_biases_2,
+            tensor_batch_normalization_gain,
+            tensor_batch_normalization_bias,
+            tensor_batch_normalization_running_mean,
+            tensor_batch_normalization_running_std,
+        )
+        print(f"training loss: {loss.item()}")
+
+        tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=block_size)
+        loss = forward_mlp(
+            tensor_x,
+            tensor_y[:, -1],
+            tensor_embedding_table,
+            tensor_weights_1,
+            tensor_weights_2,
+            tensor_biases_2,
+            tensor_batch_normalization_gain,
+            tensor_batch_normalization_bias,
+            tensor_batch_normalization_running_mean,
+            tensor_batch_normalization_running_std,
+        )
+        print(f"validation loss: {loss.item()}")
     return
 
     # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
