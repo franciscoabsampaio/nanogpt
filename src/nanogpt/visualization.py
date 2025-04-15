@@ -21,11 +21,23 @@ def save_plot_histogram_of_tensors(
     plt.figure(figsize=(10, 6))
     legends = []
     for i, t in enumerate(list_of_tensors):
-        hy, hx = torch.histogram(t, bins=100, density=True)
+        hy, hx = torch.histogram(t.cpu(), bins=100, density=True)
         plt.plot(hx[:-1], hy)
         legends.append(f"t{i} (shape={t.shape})")
     plt.legend(legends)
     plt.savefig("output/histogram_of_tensors.png")
+    plt.close()
+
+
+@torch.no_grad()
+def save_plot_loss(
+    list_of_losses: list[float],
+):
+    plt.figure(figsize=(10, 5))
+    legends = []
+    plt.plot(list_of_losses)
+    plt.legend(legends)
+    plt.savefig("output/loss.png")
     plt.close()
 
 

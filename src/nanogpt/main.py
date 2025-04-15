@@ -1,9 +1,11 @@
-from nanogpt.bigram import BigramLanguageModel
+from nanogpt.models.bigram import BigramLanguageModel
+from nanogpt.models.wavenet import WaveNetModel
 from nanogpt.input import get_input_data
 from nanogpt.token import get_encoder
 from nanogpt.train import split_train_test, get_batch
-from nanogpt.visualization import save_plot_histogram_of_tensors, save_plot_update_to_data_ratios
+from nanogpt.visualization import save_plot_histogram_of_tensors, save_plot_loss, save_plot_update_to_data_ratios
 import torch
+import torch.nn as nn
 import torch.nn.functional as f
 import matplotlib.pyplot as plt
 
@@ -30,176 +32,73 @@ def main():
 
     torch.manual_seed(42)
 
-    batch_size = 32  # The number of sequences to process in parallel
-    block_size = 5  # The number of tokens used to predict the next token
-    # tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
+    model = WaveNetModel(
+        vocabulary_size=vocabulary_size,
+        embedding_dims=200,
+        batch_size=100,  # The number of sequences to process in parallel
+        block_size=10,  # The number of tokens used to predict the next token
+        n_neurons=200,
+    ).to(device)
 
-    # NOTE: Neural networks should not receive raw integers as input,
-    # because they are not normalized.
-    # 
-    # We *could* use one-hot encoding to represent the input (later converting it to a float tensor):
-    # tensor_x_onehot = F.one_hot(tensor_x, num_classes=vocabulary_size).float()
-    # but this is not efficient for large vocabularies.
-    # 
-    # Instead, we can map the input to a lower-dimensional space using an embedding layer.
-    # This means that one-hot encoding is essentially an embedding layer
-    # where an n-dimensional vector is mapped to another n-dimensional vector.
-    embedding_dims = 200
-    n_hidden_layer = 300
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(([
+        {'params': model.embedding.parameters(), 'lr': 12},  # faster for embeddings
+        {'params': model.layer_hidden.parameters(), 'lr': 0.015},
+        {'params': model.layer_output.parameters(), 'lr': 0.07},
+        # {'params': model.layer_batchnorm.parameters(), 'lr': 1e-3},  # optional
+    ]))
 
-    tensor_embedding_table = torch.randn((vocabulary_size, embedding_dims))
-    tensor_weights_1 = torch.randn((embedding_dims * block_size, n_hidden_layer))
-    # tensor_biases_1 = torch.randn(n_hidden_layer)
-    tensor_weights_2 = torch.randn((n_hidden_layer, vocabulary_size))
-    tensor_biases_2 = torch.randn(vocabulary_size) * (1 / vocabulary_size) ** 0.2
-    tensor_batch_normalization_gain = torch.ones((1, n_hidden_layer))
-    tensor_batch_normalization_bias = torch.zeros((1, n_hidden_layer))
-    tensor_batch_normalization_running_mean = torch.zeros((1, n_hidden_layer))
-    tensor_batch_normalization_running_std = torch.ones((1, n_hidden_layer))
-    
-    list_of_parameters = [
-        tensor_embedding_table,
-        tensor_weights_1,
-        # tensor_biases_1,
-        tensor_weights_2,
-        tensor_biases_2,
-        # tensor_batch_normalization_gain,
-        # tensor_batch_normalization_bias
-    ]
-    for p in list_of_parameters:
-        if p.ndim > 1:
-            torch.nn.init.kaiming_normal_(p, mode='fan_in', nonlinearity='leaky_relu')
-        p.to(device)
-        p.requires_grad = True
-
-    with torch.no_grad():
-        tensor_weights_1.data = tensor_weights_1.data * 3/2
-        tensor_weights_2.data = tensor_weights_2.data * n_hidden_layer ** 0.5
-
-    def forward_mlp(
-        tensor_x,
-        tensor_y,
-        tensor_embedding_table,
-        tensor_weights_1,
-        # tensor_biases_1,
-        tensor_weights_2,
-        tensor_biases_2,
-        tensor_batch_normalization_gain,
-        tensor_batch_normalization_bias,
-        tensor_batch_normalization_running_mean,
-        tensor_batch_normalization_running_std,
-    ):
-        tensor_embeddings = tensor_embedding_table[tensor_x]  # (batch_size, block_size, embedding_dims)
-        
-        # Hidden layer
-        tensor_layer_hidden = f.leaky_relu(
-            # Batch normalization
-            # tensor_batch_normalization_gain
-            # * (
-                # Pre-activations (Linear layer)
-                tensor_embeddings.view(
-                    -1,
-                    tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
-                ) @ tensor_weights_1
-            #     - tensor_batch_normalization_running_mean
-            # ) / (tensor_batch_normalization_running_std + 1e-5)
-            # + tensor_batch_normalization_bias
-        )
-
-        # BatchNorm layer
-        with torch.no_grad():
-            tensor_batch_normalization_running_mean, tensor_batch_normalization_running_std = (
-                # 0.1 is the momentum
-                0.9 * tensor_batch_normalization_running_mean
-                + 0.1 * tensor_layer_hidden.mean(
-                    dim=0, keepdim=True
-                ),
-                0.9 * tensor_batch_normalization_running_std
-                + 0.1 * tensor_layer_hidden.std(
-                    dim=0, keepdim=True
-                )
-            )
-
-        tensor_logits = tensor_layer_hidden @ tensor_weights_2 + tensor_biases_2
-
-        plt.hist(tensor_layer_hidden.tolist(), 100)
-        plt.savefig("output/histogram_hidden_layer.png")
-
-        return f.cross_entropy(tensor_logits, tensor_y).log().mean()
-
-    learning_rate = 4
-    list_of_loss = [max_initial_loss]
-    iterations = 0
+    list_of_losses = [max_initial_loss]
+    iterations, max_iterations = 0, 2000
     list_of_update_to_data_ratios = []
 
-    while iterations < 100 and list_of_loss[-1] > 0.1:
+    while iterations < max_iterations and list_of_losses[-1] > 0.1:
         iterations += 1
         # Forward
-        tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
-        list_of_loss.append(forward_mlp(
-            tensor_x,
-            tensor_y[:, -1],
-            tensor_embedding_table,
-            tensor_weights_1,
-            tensor_weights_2,
-            tensor_biases_2,
-            tensor_batch_normalization_gain,
-            tensor_batch_normalization_bias,
-            tensor_batch_normalization_running_mean,
-            tensor_batch_normalization_running_std,
-        ))
+        tensor_x, tensor_y = get_batch(tensor_train, batch_size=model.batch_size, block_size=model.block_size)
+
+        logits = model(tensor_x.to(device))
+        loss = criterion(logits, tensor_y[:, -1].to(device))
+        del tensor_x, tensor_y
+        list_of_losses.append(loss.item())
 
         # Backward
-        for p in list_of_parameters:
-            p.grad = None
-        list_of_loss[-1].backward()
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+
+        if iterations > max_iterations / 2:
+            print(1)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] /= 10
+        optimizer.step()
+
         # Update
         list_of_update_to_data_ratios.append([
-            (learning_rate * p.grad.std() / p.data.std()).log10().item()
-            for p in list_of_parameters
+            # Iterate over parameter groups
+            (param_group['lr'] * p.grad.std() / (p.data.std() + 1e-5)).log10().item()
+            for param_group in optimizer.param_groups
+            for p in param_group['params']
         ])
-
-        for p in list_of_parameters:
-            p.data += -learning_rate * p.grad
-        print(f"batch loss at iteration {iterations}: {list_of_loss[-1].item()}")
+        print(f"batch loss at iteration {iterations}: {loss.item()}")
 
         save_plot_histogram_of_tensors(
-            list_of_parameters,
+            model.parameters(),
         )
+        save_plot_loss(list_of_losses)
         save_plot_update_to_data_ratios(
-            list_of_parameters,
+            model.parameters(),
             list_of_update_to_data_ratios
         )
     
     with torch.no_grad():
-        tensor_x, tensor_y = get_batch(tensor_train, batch_size=len(tensor_train) // 5, block_size=block_size)
-        loss = forward_mlp(
-            tensor_x,
-            tensor_y[:, -1],
-            tensor_embedding_table,
-            tensor_weights_1,
-            tensor_weights_2,
-            tensor_biases_2,
-            tensor_batch_normalization_gain,
-            tensor_batch_normalization_bias,
-            tensor_batch_normalization_running_mean,
-            tensor_batch_normalization_running_std,
-        )
-        print(f"training loss: {loss.item()}")
+        # tensor_x, tensor_y = get_batch(tensor_train, batch_size=len(tensor_train) // 5, block_size=model.block_size)
+        # logits = model(tensor_x.to(device))
+        # loss = criterion(logits, tensor_y[:, -1].to(device))
+        # print(f"training loss: {loss.item()}")
 
-        tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=block_size)
-        loss = forward_mlp(
-            tensor_x,
-            tensor_y[:, -1],
-            tensor_embedding_table,
-            tensor_weights_1,
-            tensor_weights_2,
-            tensor_biases_2,
-            tensor_batch_normalization_gain,
-            tensor_batch_normalization_bias,
-            tensor_batch_normalization_running_mean,
-            tensor_batch_normalization_running_std,
-        )
+        tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=model.block_size)
+        logits = model(tensor_x.to(device))
+        loss = criterion(logits, tensor_y[:, -1].to(device))
         print(f"validation loss: {loss.item()}")
     return
 
