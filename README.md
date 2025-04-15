@@ -1,6 +1,49 @@
 # nanogpt
 
-Building a small language model to study modern LLM architectures.
+Small project to study modern deep learning and LLM architectures. Here you'll find a few example models, references that I found useful, and learnings.
+
+## Models
+
+### MLP
+
+MLP using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 1400 iterations with SCD and the following hyperparameters:
+
+- `batch_size`: 100
+- `block_size`: 10
+- `embedding_dims`: 200
+- `n_neurons`: 200
+
+Batch normalization was commented out. Learning rate was reduced by a factor of 10 after 1000 iterations.
+
+#### Parameters
+
+- Total: 20.562.681
+- Trainable: 20.562.681
+
+#### Output of 100 tokens given token 0
+
+```txt
+ him, hisMA, unbelievably do
+MENblueilia make, toMinoruh still quart him.
+
+vis fearful: be'd!
+My speak ',
+You you us brother know the crimesICH UntilB
+R Canter1950AR worldatur HELt may of,
+ lighter will I:
+Or prostitute thou what Evolution to toS the Norse
+
+R heliumest the recalls; fast Surgery a 330 ofWilliams.
+
+CU art:
+Th is IISTORY?
+```
+
+#### Learnings
+
+- Learning rate can be reduced much later.
+- This tokenizer is not suitable, but model still learned something.
+- 
 
 ## Network Initialization
 

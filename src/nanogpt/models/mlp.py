@@ -1,7 +1,7 @@
 from torch import nn
 
 
-class WaveNetModel(nn.Module):
+class MLP(nn.Module):
     def __init__(
         self,
         vocabulary_size: int,

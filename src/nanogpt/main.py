@@ -1,5 +1,5 @@
 from nanogpt.models.bigram import BigramLanguageModel
-from nanogpt.models.wavenet import WaveNetModel
+from nanogpt.models.mlp import MLP
 from nanogpt.input import get_input_data
 from nanogpt.token import get_encoder
 from nanogpt.train import split_train_test, get_batch
@@ -32,13 +32,14 @@ def main():
 
     torch.manual_seed(42)
 
-    model = WaveNetModel(
+    model = MLP(
         vocabulary_size=vocabulary_size,
         embedding_dims=200,
         batch_size=100,  # The number of sequences to process in parallel
         block_size=10,  # The number of tokens used to predict the next token
         n_neurons=200,
     ).to(device)
+    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(([
@@ -49,7 +50,7 @@ def main():
     ]))
 
     list_of_losses = [max_initial_loss]
-    iterations, max_iterations = 0, 2000
+    iterations, mid_iterations, max_iterations = 0, 1000, 1100
     list_of_update_to_data_ratios = []
 
     while iterations < max_iterations and list_of_losses[-1] > 0.1:
@@ -66,8 +67,8 @@ def main():
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
 
-        if iterations > max_iterations / 2:
-            print(1)
+        if iterations == mid_iterations:
+            print("Reducing learning rate by 10x")
             for param_group in optimizer.param_groups:
                 param_group['lr'] /= 10
         optimizer.step()
@@ -100,6 +101,24 @@ def main():
         logits = model(tensor_x.to(device))
         loss = criterion(logits, tensor_y[:, -1].to(device))
         print(f"validation loss: {loss.item()}")
+
+    import time
+
+    tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=model.block_size)
+    current_token = tensor_x[0, :]
+
+    model.to('cpu')
+    for _ in range(100):
+        logits = model(current_token.unsqueeze(0))  # [1, block_size]
+        tensor_probabilities = f.softmax(logits[0], dim=0)     # [vocab_size]
+        next_token = torch.multinomial(tensor_probabilities, num_samples=1)[0]
+        
+        print(enc.decode([next_token.item()]), end='', flush=True)
+        
+        # Append token and truncate sequence to block_size
+        current_token = torch.cat([current_token, next_token.unsqueeze(0)])[-model.block_size:]
+        
+        time.sleep(0.5)
     return
 
     # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
@@ -147,21 +166,6 @@ def main():
     
     print(tensor_negative_log_loss.item())
 
-    import time
-
-    current_token = tensor_x[0, 0]  # start token
-
-    for _ in range(100):  # generate 100 tokens
-        tensor_x_onehot = f.one_hot(current_token, num_classes=vocabulary_size).float()
-        tensor_logits = tensor_x_onehot @ tensor_neuron_weights
-        tensor_probabilities = f.softmax(tensor_logits.float(), dim=0)
-
-        current_token = torch.multinomial(tensor_probabilities, num_samples=1)[0]
-        print(enc.decode([current_token.item()]), end='', flush=True)
-        time.sleep(0.5)
-    
-    return
-    batch_size, block_size = 4, 8
     tensor_x_batch, tensor_y_batch = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
     
     print([(tensor_x_batch[i, j], tensor_y_batch[i, j]) for i in range(batch_size) for j in range(block_size)])
