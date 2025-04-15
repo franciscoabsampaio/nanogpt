@@ -2,13 +2,14 @@ from nanogpt.bigram import BigramLanguageModel
 from nanogpt.input import get_input_data
 from nanogpt.token import get_encoder
 from nanogpt.train import split_train_test, get_batch
+from nanogpt.visualization import save_plot_histogram_of_tensors, save_plot_update_to_data_ratios
 import torch
 import torch.nn.functional as f
 import matplotlib.pyplot as plt
 
 
 def main():
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # Set device to GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # Set device to GPU if available
     
     data = get_input_data()
     
@@ -27,7 +28,7 @@ def main():
 
     torch.manual_seed(42)
 
-    batch_size = 100  # The number of sequences to process in parallel
+    batch_size = 32  # The number of sequences to process in parallel
     block_size = 5  # The number of tokens used to predict the next token
     # tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
 
@@ -41,14 +42,14 @@ def main():
     # Instead, we can map the input to a lower-dimensional space using an embedding layer.
     # This means that one-hot encoding is essentially an embedding layer
     # where an n-dimensional vector is mapped to another n-dimensional vector.
-    embedding_dims = 1000
-    n_hidden_layer = 1000
+    embedding_dims = 200
+    n_hidden_layer = 300
 
     tensor_embedding_table = torch.randn((vocabulary_size, embedding_dims))
     tensor_weights_1 = torch.randn((embedding_dims * block_size, n_hidden_layer))
     # tensor_biases_1 = torch.randn(n_hidden_layer)
     tensor_weights_2 = torch.randn((n_hidden_layer, vocabulary_size))
-    tensor_biases_2 = torch.randn(vocabulary_size)
+    tensor_biases_2 = torch.randn(vocabulary_size) * (1 / vocabulary_size) ** 0.2
     tensor_batch_normalization_gain = torch.ones((1, n_hidden_layer))
     tensor_batch_normalization_bias = torch.zeros((1, n_hidden_layer))
     tensor_batch_normalization_running_mean = torch.zeros((1, n_hidden_layer))
@@ -60,11 +61,18 @@ def main():
         # tensor_biases_1,
         tensor_weights_2,
         tensor_biases_2,
-        tensor_batch_normalization_gain,
-        tensor_batch_normalization_bias
+        # tensor_batch_normalization_gain,
+        # tensor_batch_normalization_bias
     ]
     for p in list_of_parameters:
+        if p.ndim > 1:
+            torch.nn.init.kaiming_normal_(p, mode='fan_in', nonlinearity='leaky_relu')
+        p.to(device)
         p.requires_grad = True
+
+    with torch.no_grad():
+        tensor_weights_1.data = tensor_weights_1.data * 3/2
+        tensor_weights_2.data = tensor_weights_2.data * n_hidden_layer ** 0.5
 
     def forward_mlp(
         tensor_x,
@@ -82,12 +90,18 @@ def main():
         tensor_embeddings = tensor_embedding_table[tensor_x]  # (batch_size, block_size, embedding_dims)
         
         # Hidden layer
-        tensor_layer_hidden = f.silu(
-            # Pre-activations (Linear layer)
-            tensor_embeddings.view(
-                -1,
-                tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
-            ) @ tensor_weights_1
+        tensor_layer_hidden = f.leaky_relu(
+            # Batch normalization
+            # tensor_batch_normalization_gain
+            # * (
+                # Pre-activations (Linear layer)
+                tensor_embeddings.view(
+                    -1,
+                    tensor_embeddings.shape[1] * tensor_embeddings.shape[2]
+                ) @ tensor_weights_1
+            #     - tensor_batch_normalization_running_mean
+            # ) / (tensor_batch_normalization_running_std + 1e-5)
+            # + tensor_batch_normalization_bias
         )
 
         # BatchNorm layer
@@ -104,23 +118,19 @@ def main():
                 )
             )
 
-        tensor_logits = (
-            # Batch normalization
-            tensor_batch_normalization_gain
-            * (tensor_layer_hidden - tensor_batch_normalization_running_mean)
-            / (tensor_batch_normalization_running_std + 1e-5)
-            + tensor_batch_normalization_bias
-        ) @ tensor_weights_2 + tensor_biases_2
+        tensor_logits = tensor_layer_hidden @ tensor_weights_2 + tensor_biases_2
 
-        plt.hist(tensor_layer_hidden.view(-1).tolist(), 100)
+        plt.hist(tensor_layer_hidden.tolist(), 100)
         plt.savefig("output/histogram_hidden_layer.png")
 
         return f.cross_entropy(tensor_logits, tensor_y).log().mean()
 
-    learning_rate = 0.0001
+    learning_rate = 4
     loss = 1
     iterations = 0
-    while iterations < 20 and loss > 0.1:
+    list_of_update_to_data_ratios = []
+
+    while iterations < 100 and loss > 0.1:
         iterations += 1
         # Forward
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
@@ -142,10 +152,22 @@ def main():
             p.grad = None
         loss.backward()
         # Update
+        list_of_update_to_data_ratios.append([
+            (learning_rate * p.grad.std() / p.data.std()).log10().item()
+            for p in list_of_parameters
+        ])
+
         for p in list_of_parameters:
             p.data += -learning_rate * p.grad
         print(f"batch loss at iteration {iterations}: {loss.item()}")
-        # break
+
+        save_plot_histogram_of_tensors(
+            list_of_parameters,
+        )
+        save_plot_update_to_data_ratios(
+            list_of_parameters,
+            list_of_update_to_data_ratios
+        )
     
     with torch.no_grad():
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=len(tensor_train) // 5, block_size=block_size)
