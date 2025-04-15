@@ -24,7 +24,9 @@ def main():
 
     # Initial loss should be, at worst, equivalent to a random guess.
     # -log(p(x)) = -log(1 / vocabulary_size) = log(vocabulary_size)
-    print(f"Initial loss shouldn't be greater than: {torch.tensor(vocabulary_size).log().item()}")
+    print(f"Initial loss shouldn't be greater than: {(
+        max_initial_loss := torch.tensor(vocabulary_size).log().item()
+    )}")
 
     torch.manual_seed(42)
 
@@ -126,15 +128,15 @@ def main():
         return f.cross_entropy(tensor_logits, tensor_y).log().mean()
 
     learning_rate = 4
-    loss = 1
+    list_of_loss = [max_initial_loss]
     iterations = 0
     list_of_update_to_data_ratios = []
 
-    while iterations < 100 and loss > 0.1:
+    while iterations < 100 and list_of_loss[-1] > 0.1:
         iterations += 1
         # Forward
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=batch_size, block_size=block_size)
-        loss = forward_mlp(
+        list_of_loss.append(forward_mlp(
             tensor_x,
             tensor_y[:, -1],
             tensor_embedding_table,
@@ -145,12 +147,12 @@ def main():
             tensor_batch_normalization_bias,
             tensor_batch_normalization_running_mean,
             tensor_batch_normalization_running_std,
-        )
+        ))
 
         # Backward
         for p in list_of_parameters:
             p.grad = None
-        loss.backward()
+        list_of_loss[-1].backward()
         # Update
         list_of_update_to_data_ratios.append([
             (learning_rate * p.grad.std() / p.data.std()).log10().item()
@@ -159,7 +161,7 @@ def main():
 
         for p in list_of_parameters:
             p.data += -learning_rate * p.grad
-        print(f"batch loss at iteration {iterations}: {loss.item()}")
+        print(f"batch loss at iteration {iterations}: {list_of_loss[-1].item()}")
 
         save_plot_histogram_of_tensors(
             list_of_parameters,
