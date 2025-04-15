@@ -17,7 +17,7 @@ Batch normalization was commented out. Learning rate was reduced by a factor of 
 
 Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/catalog/tiny_shakespeare), with a 80/10/10 train/validation/test split. Test split was never used.
 
-#### Parameters
+#### Number of Parameters
 
 - Total: 20.562.681
 - Trainable: 20.562.681
