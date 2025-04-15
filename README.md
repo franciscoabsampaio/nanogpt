@@ -32,14 +32,14 @@ Softmax is grounded on the following statistical assumptions:
 
 ## References
 
+Below are most of the references I used for learning about LLMs.
+
 WIP
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
-- **2019**. Edward Yang. *PyTorch internals*. At 0.
-- **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*. At pg 0/11.
-- **2003**. Bengio et. al. *A Neural Probabilistic Language Model*. At pg 7/19.
+- **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
 
 ✅
 
@@ -50,3 +50,5 @@ WIP
 - **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
+- **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
+- **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
