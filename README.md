@@ -2,6 +2,8 @@
 
 Small project to study modern deep learning and LLM architectures. Here you'll find a few example models, references that I found useful, and learnings.
 
+Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/catalog/tiny_shakespeare), with a 80/10/10 train/validation/test split.
+
 ## Models
 
 ### MLP
@@ -14,8 +16,6 @@ MLP using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 1400 it
 - `n_neurons`: 200
 
 Batch normalization was commented out. Learning rate was reduced by a factor of 10 after 1000 iterations.
-
-Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/catalog/tiny_shakespeare), with a 80/10/10 train/validation/test split. Test split was never used.
 
 #### Number of Parameters
 
@@ -84,7 +84,6 @@ WIP
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
-- **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*. At 24m.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
 
@@ -93,6 +92,7 @@ WIP
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 - **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
 - **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
 - **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
 - **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
