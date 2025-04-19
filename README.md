@@ -86,6 +86,7 @@ WIP
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
+- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 1/15.
 
 ✅
 
@@ -98,5 +99,6 @@ WIP
 - **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
+- **2015**. Ioffe et. al. *Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift*.
 - **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
 - **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
