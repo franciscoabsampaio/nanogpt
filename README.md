@@ -86,7 +86,7 @@ WIP
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
-- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 1/15.
+- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 6/15.
 
 ✅
 
