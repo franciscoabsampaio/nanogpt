@@ -1,12 +1,11 @@
-from nanogpt.models.bigram import BigramLanguageModel
-from nanogpt.models.mlp import MLP
+from nanogpt.models import *
 from nanogpt.input import get_input_data
 from nanogpt.token import get_encoder
 from nanogpt.train import split_train_test, get_batch
 from nanogpt.visualization import save_plot_histogram_of_tensors, save_plot_loss, save_plot_update_to_data_ratios
 import torch
 import torch.nn as nn
-import torch.nn.functional as f
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 
@@ -38,87 +37,120 @@ def main():
         batch_size=100,  # The number of sequences to process in parallel
         block_size=10,  # The number of tokens used to predict the next token
         n_neurons=200,
-    ).to(device)
-    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+    )
+    model = WaveNet(
+        batch_size=24,
+        block_size=512,
+        n_layers=12,
+        vocabulary_size=vocabulary_size,
+        channels_embedding=512,
+        channels_residual=256,
+        channels_skip=512,
+        kernel_size=3,
+    )
+    model.to(device)
+    print(f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(([
-        {'params': model.embedding.parameters(), 'lr': 12},  # faster for embeddings
-        {'params': model.layer_hidden.parameters(), 'lr': 0.015},
-        {'params': model.layer_output.parameters(), 'lr': 0.07},
-        # {'params': model.layer_batchnorm.parameters(), 'lr': 1e-3},  # optional
-    ]))
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
+    optimizer = torch.optim.AdamW(
+        [{
+            'params': layer[0].parameters(),
+            'lr': 2e-3, #layer[1] / 50,
+            'name': key,
+            'named_params': dict(layer[0].named_parameters()),
+        } for key, layer in model.layers_and_learning_rates.items() ],
+        weight_decay=0.01,
+    )
 
     list_of_losses = [max_initial_loss]
-    iterations, mid_iterations, max_iterations = 0, 1000, 1100
-    list_of_update_to_data_ratios = []
+    iterations, max_iterations = 0, 1000
+    torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_iterations, eta_min=1e-5)
+    dict_of_update_to_data_ratios = {
+        k: { m: [] for m, _ in v[0].named_parameters() }
+        for k, v in model.layers_and_learning_rates.items()
+    }
 
     while iterations < max_iterations and list_of_losses[-1] > 0.1:
         iterations += 1
         # Forward
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=model.batch_size, block_size=model.block_size)
 
+        # logits: (batch, vocab_size, block_size)
         logits = model(tensor_x.to(device))
-        loss = criterion(logits, tensor_y[:, -1].to(device))
-        del tensor_x, tensor_y
+        # Reshape for CrossEntropyLoss:
+        # Need (Batch * BlockSize, VocabSize) for logits
+        # Need (Batch * BlockSize) for targets
+        B, C, T = logits.shape
+        logits_reshaped = logits.view(B * T, C) 
+        targets_reshaped = tensor_y.reshape(B * T).to(device) # Use reshape or view
+
+        # Calculate loss over all positions
+        loss = criterion(logits_reshaped, targets_reshaped)
         list_of_losses.append(loss.item())
 
         # Backward
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
-
-        if iterations == mid_iterations:
-            print("Reducing learning rate by 10x")
-            for param_group in optimizer.param_groups:
-                param_group['lr'] /= 10
         optimizer.step()
 
+        # for m, p in model.named_parameters():
+        #     if p.grad is None:
+        #         print(f"Parameter {m} has no gradient")
+
         # Update
-        list_of_update_to_data_ratios.append([
-            # Iterate over parameter groups
-            (param_group['lr'] * p.grad.std() / (p.data.std() + 1e-5)).log10().item()
-            for param_group in optimizer.param_groups
-            for p in param_group['params']
-        ])
+        for param_group in optimizer.param_groups:
+            for m, p in param_group['named_params'].items():
+                if p.grad is not None:
+                    # Append the update-to-data ratio for the parameter
+                    dict_of_update_to_data_ratios[param_group['name']][m].append(
+                        (param_group['lr'] * p.grad.std() / (p.data.std() + 1e-5)).log10().item()
+                    )
+                else:
+                    print(f"Parameter {m} has no gradient")
         print(f"batch loss at iteration {iterations}: {loss.item()}")
 
-        save_plot_histogram_of_tensors(
-            model.parameters(),
-        )
+        save_plot_histogram_of_tensors({k: v for k, v in model.named_parameters()})
         save_plot_loss(list_of_losses)
-        save_plot_update_to_data_ratios(
-            model.parameters(),
-            list_of_update_to_data_ratios
-        )
+        save_plot_update_to_data_ratios(dict_of_update_to_data_ratios)
+        
+        del tensor_x, tensor_y, logits, logits_reshaped, targets_reshaped 
     
-    with torch.no_grad():
+    # with torch.no_grad():
         # tensor_x, tensor_y = get_batch(tensor_train, batch_size=len(tensor_train) // 5, block_size=model.block_size)
         # logits = model(tensor_x.to(device))
         # loss = criterion(logits, tensor_y[:, -1].to(device))
         # print(f"training loss: {loss.item()}")
 
-        tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=model.block_size)
-        logits = model(tensor_x.to(device))
-        loss = criterion(logits, tensor_y[:, -1].to(device))
-        print(f"validation loss: {loss.item()}")
+        # tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=model.block_size)
+        # logits = model(tensor_x.to(device))
+        # loss = criterion(logits, tensor_y[:, -1].to(device))
+        # print(f"validation loss: {loss.item()}")
 
     import time
 
-    tensor_x, tensor_y = get_batch(tensor_validation, batch_size=len(tensor_validation), block_size=model.block_size)
+    tensor_x, tensor_y = get_batch(tensor_validation, batch_size=model.batch_size, block_size=model.block_size)
     current_token = tensor_x[0, :]
 
     model.to('cpu')
+    model.eval()
+
     for _ in range(100):
-        logits = model(current_token.unsqueeze(0))  # [1, block_size]
-        tensor_probabilities = f.softmax(logits[0], dim=0)     # [vocab_size]
-        next_token = torch.multinomial(tensor_probabilities, num_samples=1)[0]
-        
-        print(enc.decode([next_token.item()]), end='', flush=True)
-        
-        # Append token and truncate sequence to block_size
-        current_token = torch.cat([current_token, next_token.unsqueeze(0)])[-model.block_size:]
-        
-        time.sleep(0.5)
+        with torch.no_grad():
+            logits = model(current_token.unsqueeze(0))  # shape: (1, vocab_size, block_size)
+            
+            # Get logits from the last position in the sequence
+            logits_last = logits[:, :, -1]  # shape: (1, vocab_size)
+            probs = F.softmax(logits_last, dim=-1)  # shape: (1, vocab_size)
+
+            # Sample the next token from the probability distribution
+            next_token = torch.multinomial(probs[0], num_samples=1)[0]
+
+            print(enc.decode([next_token.item()]), end='', flush=True)
+
+            # Append the token and keep only the last `block_size` tokens
+            current_token = torch.cat([current_token, next_token.unsqueeze(0)])[-model.block_size:]
+
+            time.sleep(0.5)
     return
 
     # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),

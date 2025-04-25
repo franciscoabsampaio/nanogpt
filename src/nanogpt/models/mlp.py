@@ -43,6 +43,13 @@ class MLP(nn.Module):
 
         self.init_weights()
 
+        # Learning rates
+        self.layers_and_learning_rates = {
+            'embedding': (self.embedding, 12),
+            'hidden': (self.layer_hidden, 0.015),
+            'output': (self.layer_output, 0.07),
+        }
+
 
     def init_weights(self):
         # Initialize weights using Kaiming normal initialization
@@ -51,7 +58,7 @@ class MLP(nn.Module):
         self.layer_hidden.weight.data *= 2
         self.layer_output.weight.data *= 1
 
-        # Initialize biases to zero
+        # Initialize biases
         nn.init.normal_(self.layer_output.bias)
         self.layer_output.bias.data *= (1 / self.vocabulary_size) ** 0.2
         
