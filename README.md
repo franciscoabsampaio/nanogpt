@@ -66,6 +66,19 @@ However, some advances have also made initialization less relevant:
 - Normalization layers, such as batch normalization, group normalization, etc;
 - Better optimizers, such as RMSProp and Adam.
 
+## Batch Normalization
+
+Batch normalization, first introduced by Ioffe et. al., is a widely used technique for addressing initialization problems and learning instabilities, such as vanishing/exploding gradients.
+
+However, most implementations of BatchNorm differ from the original paper, and instead use an EMA version of the batch statistics. Specifically, it weighs both past and present statistics through a momentum parameter. Despite showing good performance in later epochs of training, this can create instability and innacuracy in the earlier stages of training, due to how volatile statistics can be during warm-up, and taking past statistics into account becomes a source of instability.
+
+PreciseBN, on the other hand, implements the .
+
+Finally, there are some considerations that should be remembered when applying batch normalization in general:
+
+- Mini-batches that are too small make aggregate batch statistics unreliable.
+- For EMA BatchNorm, large batch sizes aggravate training instability, due to how infrequently statistics are updated.
+
 ## Observability
 
 Things to monitor:
@@ -94,13 +107,11 @@ WIP
 
 https://blog.ezyang.com/2019/05/pytorch-internals/
 https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation
-Rethinking Batch in BatchNorm https://arxiv.org/pdf/2105.07576
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
-- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 6/15.
 
 ✅
 
@@ -113,6 +124,8 @@ Rethinking Batch in BatchNorm https://arxiv.org/pdf/2105.07576
 - **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
+- **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
+- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 6/15.
 - **2015**. Ioffe et. al. *Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift*.
 - **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
 - **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
