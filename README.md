@@ -72,12 +72,16 @@ Batch normalization, first introduced by Ioffe et. al., is a widely used techniq
 
 However, most implementations of BatchNorm differ from the original paper, and instead use an EMA version of the batch statistics. Specifically, it weighs both past and present statistics through a momentum parameter. Despite showing good performance in later epochs of training, this can create instability and innacuracy in the earlier stages of training, due to how volatile statistics can be during warm-up, and taking past statistics into account becomes a source of instability.
 
-PreciseBN, on the other hand, implements the .
+On the other hand, **PreciseBN**, as described by Wu et. al., calibrates statistics periodically, allowing for higher accuracy and stability.
 
-Finally, there are some considerations that should be remembered when applying batch normalization in general:
+Many other variations of BatchNorm have been proposed in the literature. Of particular interest is **FrozenNorm**, typically applied during the last training epochs or fine-tuning. In this method, population statistics are computed, frozen, and used for the remainder of the training schedule - greatly reducing train-test inconsistencies.
+
+### Recommendations
+
+There are some considerations that should be remembered when applying batch normalization in general:
 
 - Mini-batches that are too small make aggregate batch statistics unreliable.
-- Mini-batches that are too large reduce training noise, and increase fit on the training set, which decreases the model's ability to generalize. In essence, some training noise caused by insufficient batch size can deliver some form of regularization during training.
+- Mini-batches that are too large reduce training noise, and increase fit on the training set, which decreases the model's ability to generalize. In essence, some training noise caused by insufficient batch size can deliver some form of regularization during training. This gives way to using mini-batch statistics (instead of population statistics) at inference time - bridging the train-test gap while delivering similar accuracy.
 - In addition, for EMA BatchNorm, large batch sizes aggravate training instability, due to how infrequently statistics are updated.
 
 ## Observability
