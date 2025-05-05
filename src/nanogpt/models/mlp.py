@@ -39,7 +39,7 @@ class MLP(nn.Module):
         
         # Batch normalization
         # self.layer_batchnorm = nn.BatchNorm1d(n_neurons)
-        self.layer_output = nn.Linear(n_neurons, vocabulary_size)
+        self.layer_output = nn.Linear(n_neurons, vocabulary_size * block_size)
 
         self.init_weights()
 
@@ -68,16 +68,31 @@ class MLP(nn.Module):
 
     
     def forward(self, x):
-        x = self.embedding(x)  # (batch_size, block_size, embedding_dims)
-        
-        # Pre-activations (Linear layer)
-        x = self.layer_hidden(
-            # Flatten
-            x.view(x.size(0), -1)
-        )
+        B, T = x.shape
+
+        # Embedding: (B, T) -> (B, T, C)
+        x = self.embedding(x)
+
+        # Flatten: Project all time steps together
+        x = x.view(B, -1)  # (B, C * T)
+
+        # Hidden layer and activation
+        x = self.layer_hidden(x)
         x = self.layer_activation(x)
+
         # Optional: normalize only if batch size > 1
         # if x.size(0) > 1:
         #     x = self.layer_batchnorm(x)
-        x = self.layer_output(x)
-        return x
+
+        # Output layer to produce logits for each token
+        x = self.layer_output(x)  # (B, C * T)
+
+        # Reshape back to (B, T, C)
+        x = x.view(B, T, -1)
+
+        # Permute to (B, C, T) to match WaveNet
+        return x.permute(0, 2, 1)
+
+
+    def receptive_field(self):
+        return self.block_size

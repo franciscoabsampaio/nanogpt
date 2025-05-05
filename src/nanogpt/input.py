@@ -1,4 +1,6 @@
-def get_input_data(filename: str = "/mnt/ai/tinyshakespeare/input.txt") -> dict:
+TINYSHAKESPEARE = "/mnt/ai/tinyshakespeare/input.txt"
+
+def get_input_data(filename: str = TINYSHAKESPEARE) -> dict:
     with open(filename) as f:
         text = f.read()
     vocabulary = sorted(list(set(text)))

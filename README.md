@@ -4,6 +4,14 @@ Small project to study modern deep learning and LLM architectures. Here you'll f
 
 Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/catalog/tiny_shakespeare), with a 80/10/10 train/validation/test split.
 
+## Tokenizer
+
+`sentencepiece` was used to train a tokenizer on the input data with the Byte-Pair Encoding algorithm. Most settings were taken from the Llama 2 tokenization training, with the following notable options:
+
+- Vocabulary size of 32k words. This was selected considering Shakespeare's work features a vocabulary of about 30k unique words and over 800k total words, and the "4 tokens per 3 words" rule of thumb. Additionally, over 34k tokens caused `sentencepiece` to raise an error.
+- Character coverage of `0.999995`. A slightly higher percentage was considered, because Shakespeare's work is unlikely to have typos, "faulty" words, etc.
+- Max token length of 27 tokens (Shakespeare's longest word is Honorificabilitudinitatibus, at 27 characters of length). Due to how uncommon it is, it's most definitely not going to be parsed as a single token, but it's an excellent Easter egg.
+
 ## Models
 
 ### MLP
@@ -16,6 +24,8 @@ MLP using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 1400 it
 - `n_neurons`: 200
 
 Batch normalization was commented out. Learning rate was reduced by a factor of 10 after 1000 iterations.
+
+A key way in which this implementation of an MLP differs from a traditional MLP, is how the inputs were **flattened**, to maximize sequence understanding, instead of conducting the analysis per-token. That is, each sequence entered the linear layer (and subsequent layers) in the shape `(B, T * C)` (the entirety of the time dimension (T) is being passed between neuronal layers as if it were extra embedding dimensions), which differs from, e.g., the WaveNet model (see below), which implements its context-understanding from other mechanics (dilation, causal convolutions, etc).
 
 #### Number of Parameters
 
@@ -81,6 +91,10 @@ Softmax is grounded on the following statistical assumptions:
 Below are most of the references I used for learning about LLMs.
 
 WIP
+
+https://blog.ezyang.com/2019/05/pytorch-internals/
+https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation
+Rethinking Batch in BatchNorm https://arxiv.org/pdf/2105.07576
 
 - **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.

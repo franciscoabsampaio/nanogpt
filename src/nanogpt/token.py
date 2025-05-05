@@ -1,5 +1,6 @@
 import tiktoken
 import sentencepiece
+from transformers import AutoTokenizer
 
 
 class CharEncoder:
@@ -22,8 +23,12 @@ def get_encoder(tokenizer: str = 'tiktoken', vocabulary: str = None) -> list[int
         return enc, enc.n_vocab
     elif tokenizer == 'sentencepiece':
         sp = sentencepiece.SentencePieceProcessor()
-        sp.Load("sentencepiece.model")
-        return sp, sp.get_vocab_size()
+        sp.Load("src/nanogpt/tokenizer/shakespeare35k.model")
+        return sp, sp.vocab_size()
+    elif tokenizer == 'autotokenizer':
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+        return tokenizer, tokenizer.vocab_size
     elif tokenizer == 'char':
         return CharEncoder(vocabulary), len(vocabulary)
     else:

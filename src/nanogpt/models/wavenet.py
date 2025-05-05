@@ -6,7 +6,7 @@ class CausalConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size: int = 2, dilation: int = 1):
         super().__init__()
         self.dilation = dilation
-        self.kernel_size = 2
+        self.kernel_size = kernel_size
         self.padding = (self.kernel_size - 1) * self.dilation
         self.padding_layer = nn.ZeroPad1d((self.padding, 0))
         self.conv = nn.Conv1d(
@@ -20,29 +20,45 @@ class CausalConv1d(nn.Module):
 
 
 class WavenetBlock(nn.Module):
-    def __init__(self, channels_residual, channels_skip, dilation, kernel_size: int = 2):
+    def __init__(self, channels_gate, channels_residual, channels_skip, dilation, kernel_size: int = 2):
         super().__init__()
-        self.dilated_conv = CausalConv1d(channels_residual, channels_residual, dilation, kernel_size)
+        self.dilated_conv = CausalConv1d(channels_residual, 2 * channels_gate, dilation, kernel_size)
 
-        # The number of channels in the gated activation is half of the input channels
-        self.gate_channels = channels_residual // 2
+        # The number of channels in the gated activation
+        self.gate_channels = channels_gate
 
         # 1x1 convolutions for residual and skip connections
         self.residual_conv = nn.Conv1d(self.gate_channels, channels_residual, 1)
         self.skip_conv = nn.Conv1d(self.gate_channels, channels_skip, 1)
 
+        # LayerNorm normalizes over the feature dimension (channels_residual)
+        # Pre-normalization: normalize input (before dilated conv)
+        self.layer_norm_input = nn.LayerNorm(channels_residual)
+        # Post-normalization: normalize output
+        # self.layer_norm_output = nn.LayerNorm(channels_residual) 
+
     def forward(self, x):
+        # Pre-normalization
+        x_norm_in = self.layer_norm_input(x.transpose(1, 2)).transpose(1, 2)
+
         # Pad left only
-        x_conv = self.dilated_conv(x)
+        x_conv = self.dilated_conv(x_norm_in)
 
         # Gated activation
         x_gated = torch.tanh(
-            x_conv[:, :self.gate_channels, :]  # Gate channels = Dilated layer channels // 2
+            x_conv[:, :self.gate_channels, :]
         ) * torch.sigmoid(
             x_conv[:, self.gate_channels:, :]
         )
+        
+        residuals = self.residual_conv(x_gated) + x  # Shape (B, C_res, T)
 
-        return self.skip_conv(x_gated), self.residual_conv(x_gated) + x
+        # Post-normalization (assuming self. is initialized in __init__)
+        # Transpose to (B, T, C_res), apply norm, transpose back to (B, C_res, T)
+        # residual_normalized = self.layer_norm_output(residuals.transpose(1, 2)).transpose(1, 2) 
+
+        # return skip, residual_normalized # Return the normalized version
+        return self.skip_conv(x_gated), residuals # residual_normalized
 
 
 class WaveNet(nn.Module):
@@ -53,6 +69,7 @@ class WaveNet(nn.Module):
         n_layers: int,
         vocabulary_size: int,
         channels_embedding: int = 256,
+        channels_gate: int = 256,
         channels_residual: int = 128,
         channels_skip: int = 256,
         kernel_size: int = 2,
@@ -83,15 +100,17 @@ class WaveNet(nn.Module):
         # Initial causal convolution
         self.layer_initial_conv = CausalConv1d(channels_embedding, channels_residual)
 
-        dilations = [2**i for i in range(self.n_layers)]  # e.g., [1, 2, 4, 8, 16, 32, ...]
+        self.kernel_size = kernel_size
+        self.dilations = [2**i for i in range(self.n_layers)]  # e.g., [1, 2, 4, 8, 16, 32, ...]
         self.blocks = nn.ModuleList([
             WavenetBlock(
-                channels_residual,
-                channels_skip,
-                kernel_size=kernel_size,
+                channels_gate=channels_gate,      
+                channels_residual=channels_residual, 
+                channels_skip=channels_skip,     
+                kernel_size=self.kernel_size,
                 dilation=d
             )
-            for d in dilations
+            for d in self.dilations
         ])
 
         # Output layers
@@ -125,7 +144,9 @@ class WaveNet(nn.Module):
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-                
+            elif p.dim() == 1: # Typically identifies bias vectors (and potentially LayerNorm params)
+                # Initialize 1D parameters (likely biases) to zero
+                nn.init.zeros_(p) 
             p.requires_grad = True
         
         # Flatten the weights
@@ -162,3 +183,7 @@ class WaveNet(nn.Module):
         x = torch.stack(skip_connections, dim=0).sum(dim=0) / len(skip_connections)
         x = self.layer_output_1(torch.relu(x))
         return self.layer_output_2(torch.relu(x))
+
+
+    def receptive_field(self):
+        return 1 + (self.kernel_size - 1) * sum(self.dilations)
