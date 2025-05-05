@@ -77,7 +77,8 @@ PreciseBN, on the other hand, implements the .
 Finally, there are some considerations that should be remembered when applying batch normalization in general:
 
 - Mini-batches that are too small make aggregate batch statistics unreliable.
-- For EMA BatchNorm, large batch sizes aggravate training instability, due to how infrequently statistics are updated.
+- Mini-batches that are too large reduce training noise, and increase fit on the training set, which decreases the model's ability to generalize. In essence, some training noise caused by insufficient batch size can deliver some form of regularization during training.
+- In addition, for EMA BatchNorm, large batch sizes aggravate training instability, due to how infrequently statistics are updated.
 
 ## Observability
 
@@ -103,6 +104,8 @@ Softmax is grounded on the following statistical assumptions:
 
 Below are most of the references I used for learning about LLMs.
 
+🌟 mark references that were of outstanding value to me.
+
 WIP
 
 https://blog.ezyang.com/2019/05/pytorch-internals/
@@ -117,15 +120,15 @@ https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-
 
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
-- **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- 🌟 **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
 - **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
 - **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
-- **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
+- 🌟 **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
 - **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
-- **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
+- 🌟 **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
 - **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 6/15.
 - **2015**. Ioffe et. al. *Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift*.
 - **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
-- **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
+- 🌟 **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
