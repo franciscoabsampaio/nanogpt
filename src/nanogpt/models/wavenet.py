@@ -33,21 +33,19 @@ class WavenetBlock(nn.Module):
 
         # LayerNorm normalizes over the feature dimension (channels_residual)
         # Pre-normalization: normalize input (before dilated conv)
-        self.layer_norm_input = nn.LayerNorm(channels_residual)
+        # self.layer_norm_input = nn.LayerNorm(channels_residual, elementwise_affine=False)
         # Post-normalization: normalize output
-        # self.layer_norm_output = nn.LayerNorm(channels_residual) 
+        # self.layer_norm_output = nn.LayerNorm(channels_residual, elementwise_affine=False) 
 
     def forward(self, x):
         # Pre-normalization
-        x_norm_in = self.layer_norm_input(x.transpose(1, 2)).transpose(1, 2)
+        # x_norm_in = self.layer_norm_input(x.transpose(1, 2)).transpose(1, 2)
 
         # Pad left only
-        x_conv = self.dilated_conv(x_norm_in)
-
+        x_conv = self.dilated_conv(x)
+        
         # Gated activation
-        x_gated = torch.tanh(
-            x_conv[:, :self.gate_channels, :]
-        ) * torch.sigmoid(
+        x_gated = x_conv[:, :self.gate_channels, :] * torch.sigmoid(
             x_conv[:, self.gate_channels:, :]
         )
         
@@ -58,7 +56,7 @@ class WavenetBlock(nn.Module):
         # residual_normalized = self.layer_norm_output(residuals.transpose(1, 2)).transpose(1, 2) 
 
         # return skip, residual_normalized # Return the normalized version
-        return self.skip_conv(x_gated), residuals # residual_normalized
+        return self.skip_conv(x_gated), residuals
 
 
 class WaveNet(nn.Module):
@@ -73,6 +71,7 @@ class WaveNet(nn.Module):
         channels_residual: int = 128,
         channels_skip: int = 256,
         kernel_size: int = 2,
+        learning_rate: float = 1e-3
     ):
         """
         nn.Embedding is a thin wrapper of torch.tensor that represents a table of embeddings.
@@ -114,26 +113,26 @@ class WaveNet(nn.Module):
         ])
 
         # Output layers
-        self.layer_output_1 = nn.Conv1d(channels_skip, channels_skip, 1)
+        # self.layer_output_1 = nn.Conv1d(channels_skip, channels_skip, 1)
         self.layer_output_2 = nn.Conv1d(channels_skip, vocabulary_size, 1)
 
         self.layers_and_learning_rates = {
-            'embedding': (self.layer_embedding, 50),
-            'initial_conv': (self.layer_initial_conv, 1.5),
+            'embedding': (self.layer_embedding, learning_rate * 10),
+            'initial_conv': (self.layer_initial_conv, learning_rate * 10),
             **{
-                f'block_{i}_dilated': (block.dilated_conv, 1.5)
+                f'block_{i}_dilated': (block.dilated_conv, learning_rate * 10)
                 for i, block in enumerate(self.blocks)
             },
             **{
-                f'block_{i}_residual': (block.residual_conv, 2)
+                f'block_{i}_residual': (block.residual_conv, learning_rate)
                 for i, block in enumerate(self.blocks)
             },
             **{
-                f'block_{i}_skip': (block.skip_conv, 0.4)
+                f'block_{i}_skip': (block.skip_conv, learning_rate)
                 for i, block in enumerate(self.blocks)
             },
-            'output_1': (self.layer_output_1, 0.07),
-            'output_2': (self.layer_output_2, 0.3),
+            # 'output_1': (self.layer_output_1, 0.07),
+            'output_2': (self.layer_output_2, learning_rate),
         }
 
         self.init_weights()
@@ -143,46 +142,29 @@ class WaveNet(nn.Module):
         # Initialize weights using Xavier uniform initialization
         for p in self.parameters():
             if p.dim() > 1:
+                # nn.init.kaiming_normal_(p, mode='fan_in', nonlinearity='relu') 
                 nn.init.xavier_uniform_(p)
             elif p.dim() == 1: # Typically identifies bias vectors (and potentially LayerNorm params)
                 # Initialize 1D parameters (likely biases) to zero
                 nn.init.zeros_(p) 
             p.requires_grad = True
-        
-        # Flatten the weights
-        # self.layer_embedding.weight.data *= 3
-        # self.layer_initial_conv.conv.bias.data *= 3
-        # for block in self.blocks:
-        #     block.dilated_conv.conv.bias.data *= 1.5
-        #     block.residual_conv.bias.data *= 1.5
-        #     block.skip_conv.bias.data *= 1.5
-        # self.layer_output_2.weight.data *= 5
-
-        # Skew the weights
-        # self.layer_initial_conv.conv.weight.data *= 3/4
-        # for block in self.blocks:
-        #     block.dilated_conv.conv.weight.data *= 3/4
-        #     block.residual_conv.weight.data *= 1/2
-        #     block.skip_conv.weight.data *= 1/2
-        # self.layer_output_1.weight.data *= 1/2
 
     
     def forward(self, x):
         x = self.layer_embedding(x)  # (batch_size, T=block_size, C=embedding_dims)
-        
         # Initial causal convolution
         x = self.layer_initial_conv(x.transpose(1, 2))  # (batch_size, C=channels, T=block_size)
-        
+
         # WaveNet blocks
         skip_connections = []
-        for block in self.blocks:
+        for i, block in enumerate(self.blocks):
             skip, x = block(x)
             skip_connections.append(skip)
         
         # Sum skip connections
         x = torch.stack(skip_connections, dim=0).sum(dim=0) / len(skip_connections)
-        x = self.layer_output_1(torch.relu(x))
-        return self.layer_output_2(torch.relu(x))
+        # x = self.layer_output_1(nn.functional.leaky_relu(x))
+        return self.layer_output_2(nn.functional.leaky_relu(x))
 
 
     def receptive_field(self):

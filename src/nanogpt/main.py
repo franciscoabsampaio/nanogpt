@@ -4,6 +4,7 @@ from nanogpt.token import get_encoder, sentencepiece
 from nanogpt.train import split_train_test, get_batch
 from nanogpt.visualization import save_plot_histogram_of_tensors, save_plot_loss, save_plot_update_to_data_ratios
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -65,6 +66,9 @@ def main():
 
     torch.manual_seed(42)
 
+    target_lr = 1e-3
+    initial_lr = 2e-5 # Or even 0
+
     model = MLP(
         vocabulary_size=vocabulary_size,
         embedding_dims=2048,
@@ -74,14 +78,15 @@ def main():
     )
     model = WaveNet(
         batch_size=200,
-        block_size=15,
-        n_layers=3,
+        block_size=16,
+        n_layers=4,
         vocabulary_size=vocabulary_size,
-        channels_embedding=128,
-        channels_gate=128,
-        channels_residual=128,
-        channels_skip=256,
-        kernel_size=3,
+        channels_embedding=2048,
+        channels_gate=2048,
+        channels_residual=2048,
+        channels_skip=2048,
+        kernel_size=2,
+        learning_rate=target_lr
     )
     model.to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
@@ -95,7 +100,6 @@ def main():
     criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
     list_of_losses = [max_initial_loss]
     
-    target_lr = 1.5e-2 # Your target learning rate
     optimizer = torch.optim.AdamW(
         [{
             'params': layer[0].parameters(),
@@ -107,12 +111,17 @@ def main():
     )
     
     # Steps, learning rate warm-up
-    steps, warmup_steps, max_steps = 0, 500, 150000
-    initial_lr = 1e-5 # Or even 0
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    steps, warmup_steps, max_steps = 0, 1500, 100000
+    scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
+        optimizer,
+        start_factor=initial_lr / target_lr,
+        end_factor=1,
+        total_iters=warmup_steps
+    )
+    scheduler_decay = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=max_steps - warmup_steps,
-        eta_min=1e-5
+        eta_min=1e-7
     )
     
     dict_of_update_to_data_ratios = {
@@ -125,18 +134,11 @@ def main():
 
     # Make iteration count 1-based for easier modulo calculation
     for steps in range(1, max_steps + 1): 
-        # --- Learning Rate Adjustment ---
-        if steps <= warmup_steps:
-            # Linear warmup calculation
-            lr_scale = min(1.0, float(steps) / float(warmup_steps))
-            current_lr = initial_lr + lr_scale * (target_lr - initial_lr)
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = current_lr
-
         # --- Forward Pass ---
         tensor_x, tensor_y = get_batch(tensor_train, batch_size=model.batch_size, block_size=model.block_size)
         # logits: (batch, vocab_size, block_size)
         logits = model(tensor_x.to(device))
+
         # Reshape for CrossEntropyLoss:
         # Need (Batch * BlockSize, VocabSize) for logits
         # Need (Batch * BlockSize) for targets
@@ -157,9 +159,11 @@ def main():
         if steps % accumulation_steps == 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
-            # --- Step scheduler AFTER optimizer step, only AFTER warmup ---
-            if steps > warmup_steps:
-                scheduler.step() # Step the main scheduler
+            # --- Step scheduler ---
+            if steps < warmup_steps:
+                scheduler_warmup.step() # Step the warm-up scheduler
+            else:
+                scheduler_decay.step() # Step the main scheduler
 
             # --- Logging / Plotting ---
             # Update-to-data ratio
@@ -181,16 +185,16 @@ def main():
             print(
                 f"Iter: {steps // accumulation_steps}"
                 f"\tStep: {steps}"
-                f"\tLR: {optimizer.param_groups[0]['lr']:.6f}"
+                f"\tLR: {optimizer.param_groups[0]['lr']:.7f}"
                 f"\tLoss: {current_loss_value:.4f}"
             )
 
             # Perform plotting less frequently if desired
             if (steps // accumulation_steps) % 10 == 0: # Plot every 10 effective batches
-                save_plot_histogram_of_tensors({k: v for k, v in model.named_parameters()})
                 save_plot_loss(list_of_losses)
                 save_plot_update_to_data_ratios(dict_of_update_to_data_ratios)
-        
+                save_plot_histogram_of_tensors({k: v for k, v in model.named_parameters()})
+
         del tensor_x, tensor_y, logits, logits_reshaped, targets_reshaped, loss
     
     print(f"\nSmallest loss during training: {min(list_of_losses)}")
@@ -205,8 +209,6 @@ def main():
         # logits = model(tensor_x.to(device))
         # loss = criterion(logits, tensor_y[:, -1].to(device))
         # print(f"validation loss: {loss.item()}")
-
-    import time
 
     tensor_x, tensor_y = get_batch(tensor_validation, batch_size=model.batch_size, block_size=model.block_size)
     current_token = tensor_x[0, :]

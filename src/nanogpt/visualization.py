@@ -77,7 +77,7 @@ def save_plot_update_to_data_ratios(
     lines = []
     for key, param_group in dict_of_update_to_data_ratios.items():
         for m, values in param_group.items():
-            lines.append((f"p[{key}][{m}]", values))
+            lines.append((f"p[{key}][{m}]", [max(v, -10) for v in values]))
     plot_lines(
         lines,
         title="Update-to-Data Ratios",
