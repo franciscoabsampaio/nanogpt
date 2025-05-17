@@ -14,6 +14,29 @@ Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/
 
 ## Models
 
+### WaveNet
+
+WaveNet using pre-trained tokenizer (Autotokenizer's `bert-base-uncased` - 30k tokens), trained over ~50000 iteration steps, with AdamW, and the following hyperparameters:
+
+- `batch_size`: 200
+- `block_size`: 16
+- `embedding_dims`: 2048
+- `n_layers`: 4 (number of layers in the WaveNet block)
+- `channels_gate`: 2048
+- `channels_residual`: 2048
+- `channels_skip`: 2048
+- `kernel_size`: 2
+
+The resulting WaveNet receptive field was 16.
+
+Layer normalization was commented out. A single output conv 1x1 layer was used - the data weren't sufficiently large to get enough signal through. Learning rate was warmed up linearly, then decayed with `CosineAnnealingLR`.
+
+The model converged much slower than the MLP. Significant instability warranted the implementation of LR warmup and gradient accumulation. Parameters were initialized with Xavier uniform.
+
+#### Number of Parameters
+
+- Total: 292.855.610
+
 ### MLP
 
 MLP using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 1400 iterations with SCD and the following hyperparameters:
