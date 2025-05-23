@@ -29,3 +29,51 @@ def get_batch(
     x = torch.stack([data[i:i + block_size] for i in ix])
     y = torch.stack([data[i + 1:i + block_size + 1] for i in ix])
     return x, y
+
+
+def loss(tensor_logits: torch.tensor, tensor_y: torch.tensor):
+    """
+    NOTE: GOAL: Maximize likelihood of the data wrt model parameters
+    equivalent to mazimizing the log-likelihood of the data (because log is monotonic)
+    equivalent to minimizing the negative log-likelihood of the data
+    equivalent to minimizing the average negative log-likelihood of the data
+    
+    NOTE: The logarithm of 0 is infinity and thus undefined,
+    so we need to add a small value (epsilon) to avoid division by zero
+    This is called model smoothing or Laplace smoothing
+     
+    NOTE: We can then compute the negative log loss,
+    which is what we want to minimize.
+    A measure of the variance of the weights can be added to the loss function,
+    effectively minimizing the counts of the most frequent tokens,
+    forcing the model to learn probabilities that are more uniform,
+    snoothing the model and preventing overfitting.
+    This is called regularization.
+    
+    Reshape for CrossEntropyLoss:
+    Need (Batch * BlockSize, Channels) for logits
+    Need (Batch * BlockSize) for targets
+    """
+    B, T, C = tensor_logits.shape
+    return torch.nn.CrossEntropyLoss(label_smoothing=0.05)(
+        tensor_logits.reshape(B * T, C),
+        tensor_y.reshape(B * T)
+    )
+
+
+@torch.no_grad()
+def estimate_val_loss(
+    model,
+    tensor_validation: torch.tensor,
+    iterations_for_computing_loss: int,
+    device: str = 'cpu'
+):
+    model.eval()
+    tensor_losses = torch.zeros(iterations_for_computing_loss).to(device)
+    for k in range(iterations_for_computing_loss):
+        tensor_x, tensor_y = get_batch(tensor_validation, model.batch_size, model.block_size)
+        tensor_logits = model(tensor_x.to(device))
+        tensor_losses[k] = model.loss(tensor_logits, tensor_y.to(device))
+    model.train()
+    # Normalize over number of iterations
+    return tensor_losses.mean().item()

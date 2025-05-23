@@ -88,10 +88,7 @@ class MLP(nn.Module):
         x = self.layer_output(x)  # (B, C * T)
 
         # Reshape back to (B, T, C)
-        x = x.view(B, T, -1)
-
-        # Permute to (B, C, T) to match WaveNet
-        return x.permute(0, 2, 1)
+        return x.view(B, T, -1)
 
 
     def receptive_field(self):

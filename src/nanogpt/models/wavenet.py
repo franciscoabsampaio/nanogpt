@@ -157,15 +157,17 @@ class WaveNet(nn.Module):
 
         # WaveNet blocks
         skip_connections = []
-        for i, block in enumerate(self.blocks):
+        for block in self.blocks:
             skip, x = block(x)
             skip_connections.append(skip)
         
         # Sum skip connections
         x = torch.stack(skip_connections, dim=0).sum(dim=0) / len(skip_connections)
         # x = self.layer_output_1(nn.functional.leaky_relu(x))
-        return self.layer_output_2(nn.functional.leaky_relu(x))
+        x = self.layer_output_2(nn.functional.leaky_relu(x))
 
+        # Is (B, C, T), permute to (B, T, C)
+        return x.permute(0, 2, 1)
 
-    def receptive_field(self):
+    def receptive_field(self) -> int:
         return 1 + (self.kernel_size - 1) * sum(self.dilations)
