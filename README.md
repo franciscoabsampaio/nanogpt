@@ -138,7 +138,6 @@ WIP
 https://blog.ezyang.com/2019/05/pytorch-internals/
 https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation
 
-- **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*. At 40m.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 - **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
@@ -148,6 +147,7 @@ https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 - 🌟 **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- 🌟 **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*.
 - **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
 - **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
 - 🌟 **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
