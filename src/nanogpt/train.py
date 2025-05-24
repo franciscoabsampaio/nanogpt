@@ -1,9 +1,17 @@
 import torch
+import torch.nn.functional as F
 
 
 def split_train_test(data: torch.tensor, train_size=0.8) -> tuple[torch.tensor, torch.tensor]:
     train_size = int(len(data) * train_size)
     return data[:train_size], data[train_size:]
+
+
+def pad(data: torch.tensor, block_size: int):
+    if len(data) <= block_size:
+        return F.pad(data, (block_size - len(data), 0))
+    else:
+        return data
 
 
 def get_batch(
@@ -23,8 +31,12 @@ def get_batch(
     y is a tensor of shape (batch_size, block_size) containing the target sequences.
     y is the same as x, but shifted one position to the right (predicting the next token).
     """
-    max_size = len(data) - block_size
-    ix = torch.randint(0, max_size, (batch_size,))
+    # If data is too short, pad it up to block_size+1
+    data = pad(data, block_size + 1)
+    max_starting_id = len(data) - block_size    
+
+    # Sample random starting IDs for the sequence
+    ix = torch.randint(0, max_starting_id, (batch_size,))
     
     x = torch.stack([data[i:i + block_size] for i in ix])
     y = torch.stack([data[i + 1:i + block_size + 1] for i in ix])

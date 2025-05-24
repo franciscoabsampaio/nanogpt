@@ -51,7 +51,9 @@ def main():
         block_size=10,
         vocabulary_size=vocabulary_size,
         channels_embedding=2048,
-        channels_head=128,
+        number_of_heads=4,
+        number_of_blocks=2,
+        dropout_rate=0.2,
         device=device
     )
     model.to(device)
@@ -77,7 +79,7 @@ def main():
     )
     
     # Steps, learning rate warm-up
-    steps, warmup_steps, max_steps = 0, 1500, 10000
+    steps, warmup_steps, max_steps = 0, 1500, 3000
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
         start_factor=initial_lr / target_lr,
@@ -168,16 +170,20 @@ def main():
     
     print(f"\nSmallest loss during training: {min(list_of_losses)}")
 
-    tensor_x, tensor_y = train.get_batch(tensor_validation, batch_size=model.batch_size, block_size=model.block_size)
-    current_token = tensor_x[0, :]
 
+    initial_prompt = "\n"
+    initial_token_ids = enc.encode(initial_prompt)
+    current_token = train.pad(
+        torch.tensor(initial_token_ids, dtype=torch.int64).to(device),
+        model.block_size
+    )
     model.eval()
     for _ in range(100):
         with torch.no_grad():
-            logits = model(current_token.unsqueeze(0).to(device))  # shape: (1, vocab_size, block_size)
+            logits = model(current_token.unsqueeze(0))  # shape: (1, block_size, vocab_size)
             
             # Get logits from the last position in the sequence
-            logits_last = logits[:, :, -1]  # shape: (1, vocab_size)
+            logits_last = logits[:, -1, :]  # shape: (1, vocab_size)
             # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
             # we need to exponentiate the logits to get the counts.
             # Since x is a one-hot vector (ones and zeros),
@@ -187,7 +193,7 @@ def main():
             # 
             # tensor_counts = tensor_logits.exp()
             # tensor_probabilities = tensor_counts / tensor_counts.sum(dim=-1, keepdim=True)
-            probs = F.softmax(logits_last, dim=-1)  # shape: (1, vocab_size)
+            probs = F.softmax(logits_last / 4, dim=-1)  # shape: (1, vocab_size)
 
             # Sample the next token from the probability distribution
             next_token = torch.multinomial(probs[0], num_samples=1)[0]

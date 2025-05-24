@@ -3,12 +3,13 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-class SelfAttentionHead(nn.Module):
+class CausalSelfAttentionHead(nn.Module):
     def __init__(
         self,
         block_size: int,
         channels_embedding: int,
         channels_head: int,
+        dropout_rate: float
     ):
         super().__init__()
         self.block_size = block_size
@@ -18,6 +19,8 @@ class SelfAttentionHead(nn.Module):
         self.matrix_value = nn.Linear(channels_embedding, channels_head, bias=False)
         # Lower triangular
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+
+        self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
         k = self.matrix_key(x)
@@ -30,7 +33,76 @@ class SelfAttentionHead(nn.Module):
         # Compute attention scores (affinities)
         weights = F.softmax(weights, dim=1)
         # Perform weighted aggregation of the values
-        return weights @ v  # (B, T, T) @ (B, T, C) -> (B, T, C)
+        return self.dropout(weights) @ v  # (B, T, T) @ (B, T, C) -> (B, T, C)
+
+
+class MultiHeadSelfAttention(nn.Module):
+    def __init__(
+        self,
+        block_size: int,
+        channels_embedding: int,
+        channels_head: int,
+        number_of_heads: int,
+        dropout_rate: float
+    ):
+        super().__init__()
+        self.heads = nn.ModuleList([
+            CausalSelfAttentionHead(block_size, channels_embedding, channels_head, dropout_rate)
+            for _ in range(number_of_heads)
+        ])
+        self.dropout = nn.Dropout(dropout_rate)
+
+    def forward(self, x):
+        x_projected = torch.cat([h(x) for h in self.heads], dim=-1)
+        return self.dropout(x_projected)
+
+
+class FeedForward(nn.Module):
+    def __init__(
+        self,
+        channels_embedding: int,
+        dropout_rate: float
+    ):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(channels_embedding, 4 * channels_embedding),
+            nn.ReLU(),
+            nn.Linear(4 * channels_embedding, channels_embedding),
+            nn.Dropout(dropout_rate)
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+
+class Block(nn.Module):
+    def __init__(
+        self,
+        block_size: int,
+        channels_embedding: int,
+        number_of_heads: int,
+        dropout_rate: float
+    ):
+        super().__init__()
+        self.layer_multi_head_attention = MultiHeadSelfAttention(
+            block_size,
+            channels_embedding,
+            channels_head := channels_embedding // number_of_heads,
+            number_of_heads,
+            dropout_rate
+        )
+        self.layer_feedforward = FeedForward(channels_embedding, dropout_rate)
+        self.layer_norm_1 = nn.LayerNorm(channels_embedding)
+        self.layer_norm_2 = nn.LayerNorm(channels_embedding)
+
+
+    def forward(self, x):
+        x_plus_attention = x + self.layer_multi_head_attention(
+            self.layer_norm_1(x)
+        )
+        return x_plus_attention + self.layer_feedforward(
+            self.layer_norm_2(x_plus_attention)
+        )
 
 
 class Transformer(nn.Module):
@@ -40,7 +112,9 @@ class Transformer(nn.Module):
         block_size: int,
         vocabulary_size: int,
         channels_embedding: int,
-        channels_head: int,
+        number_of_heads: int,
+        number_of_blocks: int,
+        dropout_rate: float,
         device: str
     ):
         """
@@ -53,13 +127,18 @@ class Transformer(nn.Module):
 
         self.layer_embedding_token = nn.Embedding(vocabulary_size, channels_embedding)
         self.layer_embedding_position = nn.Embedding(block_size, channels_embedding)
-        self.layer_self_attention_head = SelfAttentionHead(block_size, channels_embedding, channels_head)
-        self.layer_output = nn.Linear(channels_head, vocabulary_size)
+        self.blocks = nn.Sequential(*([
+            Block(
+                block_size, channels_embedding, number_of_heads, dropout_rate
+            )
+            for _ in range(number_of_blocks)
+        ] + [nn.LayerNorm(channels_embedding)]))
+        self.layer_output = nn.Linear(channels_embedding, vocabulary_size)
 
         self.layers_and_learning_rates = {
             'embedding_token': (self.layer_embedding_token, 1),
             'embedding_position': (self.layer_embedding_position, 1),
-            'self_attention_head': (self.layer_self_attention_head, 1),
+            'blocks': (self.blocks, 1),
             'output': (self.layer_output, 1),
         }
     
@@ -71,9 +150,8 @@ class Transformer(nn.Module):
         x_token_emb = self.layer_embedding_token(x)  # shape: (Batch=batch_size, Time=block_size, Channel=vocabulary_size)
         x_position_emb = self.layer_embedding_position(torch.arange(self.block_size, device=self.device))
         
-        return self.layer_output(
-            self.layer_self_attention_head(x_token_emb + x_position_emb)
-        )
+        x_emb = x_token_emb + x_position_emb
+        return self.layer_output(self.blocks(x_emb))
 
 
     def generate(self, idx, max_new_tokens):

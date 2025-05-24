@@ -28,7 +28,7 @@ def get_encoder(tokenizer: str = 'tiktoken', vocabulary: str = None) -> list[int
         sp.Load("src/nanogpt/tokenizer/shakespeare35k.model")
         return sp, sp.vocab_size()
     elif tokenizer == 'autotokenizer':
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         return tokenizer, tokenizer.vocab_size
     elif tokenizer == 'char':
         return CharEncoder(vocabulary), len(vocabulary)

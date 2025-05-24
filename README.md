@@ -14,6 +14,54 @@ Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/
 
 ## Models
 
+### Transformer
+
+Decoder-only transformer architecture using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 3000 iterations with AdamW and the following hyperparameters:
+
+- `batch_size`: 200
+- `block_size`: 10
+- `embedding_dims`: 2048
+- `number_of_heads`: 4
+- `number_of_multi_head_attention_blocks`: 2
+- `dropout_rate`: 0.2
+
+Similarly to the WaveNet, learning rate was warmed up linearly, over 1500 steps, then decayed with `CosineAnnealingLR`. Starting learning rate was `1e-5`, peak was `1.33e-4`, and final was ????????.
+
+The key differences between this implementation of a decoder-only Transformer and the default one are:
+
+- Pre-normalization was used instead of post-normalization. Nowadays, this is the most common choice, because it helps with gradient issues before even the inputs are fed to the layers.
+- In each self-attention head, dropout was applied to the attention weights (the output of the softmax), before multiplying the masked weights matrix by the values matrix, whereas in the original paper it is applied after the final projection. This change teaches the model to not rely too heavily on any single input token's value V, encouraging it to spread its attention bets and learn more robust, distributed representations. It is, essentially, a regularization strategy that is more targeted at the attention mechanism itself. Additionally, if some attention links are stochastically removed, heads are more likely to find different, complementary information.
+- Gradient accumulation was kept from previous architectures.
+
+#### Number of Parameters
+
+- Total: 20.562.681
+- Trainable: 20.562.681
+
+#### Output of 100 tokens given token 0
+
+```txt
+ him, hisMA, unbelievably do
+MENblueilia make, toMinoruh still quart him.
+
+vis fearful: be'd!
+My speak ',
+You you us brother know the crimesICH UntilB
+R Canter1950AR worldatur HELt may of,
+ lighter will I:
+Or prostitute thou what Evolution to toS the Norse
+
+R heliumest the recalls; fast Surgery a 330 ofWilliams.
+
+CU art:
+Th is IISTORY?
+```
+
+#### Learnings
+
+- Learning rate can be reduced much later.
+- This tokenizer is not suitable, but model still learned something.
+
 ### WaveNet
 
 WaveNet using pre-trained tokenizer (Autotokenizer's `bert-base-uncased` - 30k tokens), trained over ~50000 iteration steps, with AdamW, and the following hyperparameters:
