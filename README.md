@@ -183,12 +183,8 @@ Below are most of the references I used for learning about LLMs.
 
 WIP
 
-https://blog.ezyang.com/2019/05/pytorch-internals/
-https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation
-
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
-- **2019**. Edward Yang. *PyTorch internals*. At 'Autograd'.
 
 ✅
 
@@ -196,6 +192,7 @@ https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 - 🌟 **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
 - 🌟 **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*.
+- **2023**. Jessica Rumbelow, mwatkins. *SolidGoldMagikarp (plus, prompt generation)*.
 - **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
 - **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
 - 🌟 **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
@@ -203,7 +200,8 @@ https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
 - 🌟 **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
-- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*. At 6/15.
+- **2019**. Edward Yang. *PyTorch internals*.
+- **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*.
 - **2015**. Ioffe et. al. *Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift*.
 - **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
 - 🌟 **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
