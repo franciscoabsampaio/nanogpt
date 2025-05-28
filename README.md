@@ -196,6 +196,7 @@ Below are most of the references I used for learning about LLMs.
 WIP
 
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
+- **2020**. Open AI. *Language Models are Few-Shot Learners*.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
 ### Fundamentals
