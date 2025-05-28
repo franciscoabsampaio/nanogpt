@@ -211,6 +211,10 @@ WIP
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 
+#### LLMs
+
+- **2019**. Radford et. al. *Language Models are Unsupervised Multitask Learners*.
+
 #### Transformer
 
 - 🌟 **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*.
