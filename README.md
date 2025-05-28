@@ -137,7 +137,19 @@ However, some advances have also made initialization less relevant:
 - Normalization layers, such as batch normalization, group normalization, etc;
 - Better optimizers, such as RMSProp and Adam.
 
-## Batch Normalization
+## Training
+
+### Dropout
+
+Dropout is the stochastic removal of hidden units from a network. It is a simple mechanism for controlling overfit in deep learning models, and is intued to break up co-adaptations that neurons would otherwise develop - making each unit more self-dependent.
+
+#### Recommendations
+
+Due to its network diminishing effect (because some units are being dropped out during training), the size of the network should be increased by `n/(1-d)`, where `n` is the otherwise ideal network size, and `d` is the dropout rate.
+
+Since dropout increases the amount of noise in the gradients, the model takes longer to converge, and increasing the learning rate by at least one order of magnitude and the momentum by 5-10% may be warranted. To prevent network weights from exploding, Sristava et. al. (2014) recommend max-norm regularization.
+
+### Batch Normalization
 
 Batch normalization, first introduced by Ioffe et. al., is a widely used technique for addressing initialization problems and learning instabilities, such as vanishing/exploding gradients.
 
@@ -147,7 +159,7 @@ On the other hand, **PreciseBN**, as described by Wu et. al., calibrates statist
 
 Many other variations of BatchNorm have been proposed in the literature. Of particular interest is **FrozenNorm**, typically applied during the last training epochs or fine-tuning. In this method, population statistics are computed, frozen, and used for the remainder of the training schedule - greatly reducing train-test inconsistencies.
 
-### Recommendations
+#### Recommendations
 
 There are some considerations that should be remembered when applying batch normalization in general:
 
@@ -186,22 +198,53 @@ WIP
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
-✅
+### Fundamentals
+
+- **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
+- **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
+- **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
+
+### Architecture
+
+#### Activation Functions
 
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
-- 🌟 **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+
+#### Transformer
+
 - 🌟 **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*.
-- **2023**. Jessica Rumbelow, mwatkins. *SolidGoldMagikarp (plus, prompt generation)*.
+- 🌟 **2017**. Vaswani et. al. *Attention Is All You Need*.
+
+#### WaveNet
+
 - **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
-- **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
-- 🌟 **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
-- **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
-- **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
-- **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
-- 🌟 **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
-- **2019**. Edward Yang. *PyTorch internals*.
 - **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*.
+
+#### MLP
+
+- **2022**. Andrej Karpathy. *Building makemore Part 2: MLP*.
+- 🌟 **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
+
+### Training
+
+- 🌟 **2022**. Andrej Karpathy. *Building makemore Part 3: Activations & Gradients, BatchNorm*.
+- 🌟 **2021**. Wu et. al. *Rethinking "Batch" in BatchNorm*.
 - **2015**. Ioffe et. al. *Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift*.
 - **2015**. Kaiming et. al. *Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification*.
-- 🌟 **2003**. Bengio et. al. *A Neural Probabilistic Language Model*.
+- **2014**. Sristava et. al. *Dropout: A Simple Way to Prevent Neural Networks from Overfitting*.
+
+### Tokenization
+
+- 🌟 **2024**. Andrej Karpathy. *Let's build the GPT tokenizer*.
+- **2023**. mwatkins, Jessica Rumbelow. *SolidGoldMagikarp III: Glitch token archaeology*.
+- **2023**. mwatkins, Jessica Rumbelow. *SolidGoldMagikarp II: technical details and more recent findings*.
+- **2023**. Jessica Rumbelow, mwatkins. *SolidGoldMagikarp (plus, prompt generation)*.
+
+### PyTorch
+
+- **2019**. Edward Yang. *PyTorch internals*.
+
+### Interpretability
+
+- **2017**. Lundberg and Lee. *A Unified Approach to Interpreting Model Predictions*.
