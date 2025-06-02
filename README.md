@@ -14,6 +14,13 @@ Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/
 
 ## Models
 
+### LLM
+
+MEGABYTE-like.
+because megabyte's performance is best on earlier tokens \cite{megabyte_2023}, strided inference helps with prediction accuracy
+
+Additional projection to latent space in the vein of Perceiver and PerceiverIO.
+
 ### Transformer
 
 Decoder-only transformer architecture using pre-trained tokenizer (`p50k_base` - 50k tokens), trained over 3000 iterations with AdamW and the following hyperparameters:
@@ -205,26 +212,39 @@ WIP
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
 
-### Architecture
-
 #### Activation Functions
 
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
 
-#### LLMs
+#### PyTorch
 
-- **2019**. Radford et. al. *Language Models are Unsupervised Multitask Learners*.
+- **2019**. Edward Yang. *PyTorch internals*.
+
+### Architecture
+
+#### MoE (Mixture of Experts)
+
+- **2025**. Meta AI. *The Llama 4 herd: The beginning of a new era of natively multimodal AI innovation*.
+
+#### MEGABYTE
+
+- **2023**. Yu et. al. *MEGABYTE: Predicting Million-byte Sequences with Multiscale Transformers*.
 
 #### Transformer
 
 - 🌟 **2023**. Andrej Karpathy. *Let's build GPT: from scratch, in code, spelled out*.
+- **2019**. Radford et. al. *Language Models are Unsupervised Multitask Learners*.
 - 🌟 **2017**. Vaswani et. al. *Attention Is All You Need*.
 
 #### WaveNet
 
 - **2022**. Andrej Karpathy. *Building makemore Part 5: Building a WaveNet*.
 - **2016**. Oord et. al. *WaveNet: A Generative Model for Raw Audio*.
+
+#### Sequence-to-Sequence Models
+
+- **2014**. Sutskever et. al. *Sequence to Sequence Learning with Neural Networks*.
 
 #### MLP
 
@@ -246,9 +266,9 @@ WIP
 - **2023**. mwatkins, Jessica Rumbelow. *SolidGoldMagikarp II: technical details and more recent findings*.
 - **2023**. Jessica Rumbelow, mwatkins. *SolidGoldMagikarp (plus, prompt generation)*.
 
-### PyTorch
+### Inference
 
-- **2019**. Edward Yang. *PyTorch internals*.
+- **2025**. Sulbha Jain. *LLM Inferencing strategies —Review of Greedy Search and Beam Search*.
 
 ### Interpretability
 
