@@ -19,7 +19,14 @@ Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/
 MEGABYTE-like.
 because megabyte's performance is best on earlier tokens \cite{megabyte_2023}, strided inference helps with prediction accuracy
 
-Additional projection to latent space in the vein of Perceiver and PerceiverIO.
+Additional projection to latent space in the vein of Perceiver / PerceiverIO / PerceiverAR? Not really, the PerceiverAR architecture uses, by default, an embedding latent space, where the query matrix is obtained by taking the `N` last elements of the input.
+This is unlike architectures such as the WaveNet, where fixed or hand-tuned sparsity require several layers, achieving long-range communication at the cost of significant fragility.
+
+The authors of PerceiverAR also suggest substituting dropout by a random selection of inputs from the maximum input context.
+
+#### Efficiency
+
+Codebook learning and quantization can be used to improve storage efficiency.
 
 ### Transformer
 
@@ -203,7 +210,7 @@ Below are most of the references I used for learning about LLMs.
 WIP
 
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
-- **2020**. Open AI. *Language Models are Few-Shot Learners*.
+- **2020**. Open AI. *Language Models are Few-Shot Learners*. At 6/75.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
 ### Fundamentals
@@ -216,6 +223,7 @@ WIP
 
 - **2024**. Larry Du. *All the Activation Functions (and a history of deep learning)*.
 - **2024**. J Carlos Roldán. *What is SwiGLU*.
+- **2024**. Su et. al. *RoFormer: Enhanced transformer with Rotary Position Embedding*.
 
 #### PyTorch
 
@@ -268,7 +276,7 @@ WIP
 
 ### Inference
 
-- **2025**. Sulbha Jain. *LLM Inferencing strategies —Review of Greedy Search and Beam Search*.
+- **2025**. Sulbha Jain. *LLM Inferencing strategies — Review of Greedy Search and Beam Search*.
 
 ### Interpretability
 

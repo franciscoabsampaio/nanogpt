@@ -79,7 +79,7 @@ def main():
     )
     
     # Steps, learning rate warm-up
-    steps, warmup_steps, max_steps = 0, 1500, 3000
+    steps, warmup_steps, max_steps = 0, 10_000, 100_000
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
         start_factor=initial_lr / target_lr,
