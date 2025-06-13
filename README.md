@@ -24,6 +24,9 @@ This is unlike architectures such as the WaveNet, where fixed or hand-tuned spar
 
 The authors of PerceiverAR also suggest substituting dropout by a random selection of inputs from the maximum input context.
 
+GPT-3 used the same architecture as GPT-2, with the exception of alternating dense and locally banded sparse
+attention patterns in the layers of the transformer, similar to the Sparse Transformer.
+
 #### Efficiency
 
 Codebook learning and quantization can be used to improve storage efficiency.
@@ -210,7 +213,7 @@ Below are most of the references I used for learning about LLMs.
 WIP
 
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
-- **2020**. Open AI. *Language Models are Few-Shot Learners*. At 6/75.
+- **2020**. Open AI. *Language Models are Few-Shot Learners*. At 10/75.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
 ### Fundamentals
