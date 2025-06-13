@@ -16,6 +16,8 @@ Training dataset was [**tiny_shakespeare**](https://www.tensorflow.org/datasets/
 
 ### LLM
 
+Trained on Oscar 2301 (~20TB).
+
 MEGABYTE-like.
 because megabyte's performance is best on earlier tokens \cite{megabyte_2023}, strided inference helps with prediction accuracy
 
@@ -213,7 +215,7 @@ Below are most of the references I used for learning about LLMs.
 WIP
 
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
-- **2020**. Open AI. *Language Models are Few-Shot Learners*. At 10/75.
+- **2020**. Open AI. *Language Models are Few-Shot Learners*. At 20/75.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
 ### Fundamentals
