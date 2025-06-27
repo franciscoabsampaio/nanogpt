@@ -285,4 +285,5 @@ WIP
 
 ### Interpretability
 
+- **2023**. Harrison Pim. *Privileged vs non-privileged bases in machine learning*.
 - **2017**. Lundberg and Lee. *A Unified Approach to Interpreting Model Predictions*.
