@@ -46,23 +46,30 @@ def main():
         block_size=10,  # The number of tokens used to predict the next token
         n_neurons=1024,
     )
-    model = Transformer(
-        batch_size=200,
+    model = transformer.Transformer(transformer.Config(
+        vocabulary_size,
+        device,
         block_size=10,
-        vocabulary_size=vocabulary_size,
-        channels_embedding=2048,
-        number_of_heads=4,
         number_of_blocks=2,
-        dropout_rate=0.2,
-        device=device
-    )
+        number_of_heads=4,
+        channels_embedding=2048,
+    ))
+    model = GPT2(transformer.Config(
+        vocabulary_size,
+        device,
+        batch_size=4,
+        block_size=1024,
+        number_of_blocks=12,
+        number_of_heads=12,
+        channels_embedding=768
+    ))
     model.to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     print(f"Model receptive field: {model.receptive_field()}")
 
     # Initial loss should be, at worst, equivalent to a random guess.
     # -log(p(x)) = -log(1 / vocabulary_size) = log(vocabulary_size)
-    print(f"Initial loss shouldn't be greater than: {(
+    print(f"Initial loss should be around: {(
         max_initial_loss := torch.tensor(vocabulary_size).log().item()
     )}")
     model.loss = train.loss
@@ -79,7 +86,7 @@ def main():
     )
     
     # Steps, learning rate warm-up
-    steps, warmup_steps, max_steps = 0, 10_000, 100_000
+    steps, warmup_steps, max_steps = 0, 500, 1000 #10_000, 100
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
         start_factor=initial_lr / target_lr,
@@ -176,14 +183,14 @@ def main():
     current_token = train.pad(
         torch.tensor(initial_token_ids, dtype=torch.int64).to(device),
         model.block_size
-    )
+    )  # (1, T)
     model.eval()
     for _ in range(100):
         with torch.no_grad():
-            logits = model(current_token.unsqueeze(0))  # shape: (1, block_size, vocab_size)
+            logits = model(current_token.unsqueeze(0))  # shape: (1, block_size, vocab_size) = (1, T, C)
             
             # Get logits from the last position in the sequence
-            logits_last = logits[:, -1, :]  # shape: (1, vocab_size)
+            logits_last = logits[:, -1, :]  # shape: (1, vocab_size) = (1, C)
             # NOTE: Because we're assuming that the output of each neuron is the logarithm of the count (log-counts),
             # we need to exponentiate the logits to get the counts.
             # Since x is a one-hot vector (ones and zeros),
@@ -195,13 +202,17 @@ def main():
             # tensor_probabilities = tensor_counts / tensor_counts.sum(dim=-1, keepdim=True)
             probs = F.softmax(logits_last / 4, dim=-1)  # shape: (1, vocab_size)
 
+            # Top-k sampling (keep only the top 50 probabilities from the probability distribution)
+            top_k_probs, top_k_indices = torch.topk(probs, 50, dim=-1)
             # Sample the next token from the probability distribution
-            next_token = torch.multinomial(probs[0], num_samples=1)[0]
+            # (vocab_size collapses to a single token - the prediction)
+            top_k_next_token = torch.multinomial(top_k_probs, num_samples=1)  # (1, 1)
+            next_token = torch.gather(top_k_indices, 1, top_k_next_token)[0]  # (1, 1)
 
             print(enc.decode([next_token.item()]), end='', flush=True)
 
             # Append the token and keep only the last `block_size` tokens
-            current_token = torch.cat([current_token, next_token.unsqueeze(0)])[-model.block_size:]
+            current_token = torch.cat([current_token, next_token])[-model.block_size:]
 
             time.sleep(0.5)
 
