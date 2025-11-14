@@ -23,6 +23,10 @@ def main():
     tensor_validation, tensor_test = train.split_train_test(tensor_test, train_size=0.5)
 
     torch.manual_seed(42)
+    # highest: F32
+    # high: TF32
+    # medium: BF16
+    torch.set_float32_matmul_precision('high')
 
     target_lr = 1e-3
     initial_lr = 1e-5 # Or even 0
@@ -86,6 +90,7 @@ def main():
     )
     
     # Steps, learning rate warm-up
+    list_of_step_times = []
     steps, warmup_steps, max_steps = 0, 500, 1000 #10_000, 100
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
@@ -109,6 +114,7 @@ def main():
 
     # Make iteration count 1-based for easier modulo calculation
     for steps in range(1, max_steps + 1): 
+        _time_at_step_start = time.time()
         # --- Forward Pass ---
         tensor_x, tensor_y = train.get_batch(tensor_train, batch_size=model.batch_size, block_size=model.block_size)
         # logits: (batch, vocab_size, block_size)
@@ -125,6 +131,7 @@ def main():
 
         # --- Backward Pass ---
         loss_training.backward()
+        list_of_step_times.append(time.time() - _time_at_step_start)
 
         # Only step optimizer and scheduler after accumulating gradients for accumulation_steps batches
         if steps % accumulation_steps == 0:
@@ -165,7 +172,9 @@ def main():
                 f"\tStep: {steps}"
                 f"\tLR: {optimizer.param_groups[0]['lr']:.7f}"
                 f"\tLoss: {loss_mean:.4f}"
+                f"\tMean Time Per Step: {sum(list_of_step_times[-accumulation_steps:]) / accumulation_steps:.3f}"
             )
+            list_of_step_times = []
 
             # Perform plotting less frequently if desired
             if (steps // accumulation_steps) % 10 == 0: # Plot every 10 effective batches
