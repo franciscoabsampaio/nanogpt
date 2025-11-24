@@ -82,10 +82,10 @@ def estimate_val_loss(
 ):
     model.eval()
     tensor_losses = torch.zeros(iterations_for_computing_loss).to(device)
-    for k in range(iterations_for_computing_loss):
+    for i in range(iterations_for_computing_loss):
         tensor_x, tensor_y = get_batch(tensor_validation, model.batch_size, model.block_size)
         tensor_logits = model(tensor_x.to(device))
-        tensor_losses[k] = model.loss(tensor_logits, tensor_y.to(device))
+        tensor_losses[i] = model.loss(tensor_logits, tensor_y.to(device))
     model.train()
     # Normalize over number of iterations
     return tensor_losses.mean().item()

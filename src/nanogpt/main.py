@@ -61,10 +61,10 @@ def main():
     model = GPT2(transformer.Config(
         vocabulary_size,
         device,
-        batch_size=4,
+        batch_size=4,  # Micro-batch size
         block_size=1024,
-        number_of_blocks=12,
-        number_of_heads=12,
+        number_of_blocks=16,
+        number_of_heads=8,
         channels_embedding=768
     ))
     model.to(device)
@@ -85,12 +85,18 @@ def main():
             'lr': target_lr,
             'name': key,
             'named_params': dict(layer[0].named_parameters()),
+            'weight_decay': 0.01
+            falta configurar weight decay por parametro com base em dimensionalidade
         } for key, layer in model.layers_and_learning_rates.items() ],
-        weight_decay=0.01,
+        betas=(0.9, 0.95)  # Following GPT-3
     )
+
+    # Compile model
+    model = torch.compile(model)
     
     # Steps, learning rate warm-up
     list_of_step_times = []
+    list_of_tokens_per_sec = []
     steps, warmup_steps, max_steps = 0, 500, 1000 #10_000, 100
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
@@ -110,28 +116,51 @@ def main():
     }
 
     # --- Gradient Accumulation Setup ---
-    accumulation_steps = 8 # Calculate effective batch size: 10 * 8 = 80. Adjust as needed based on memory.
+    # Gradient accumulation makes larger batch sizes achievable
+    # while still using a smaller micro-batch size.
+    # The gradients are accumulated until the desired batch size is reached.
+    # The total batch size is typically measured in tokens.
+    total_batch_size = 524_288  # 2^19 which will play well with B and T
+    assert (
+        total_batch_size % (model.batch_size * model.block_size),
+        "Assert total_batch_size is divisible by B * T"
+    )
+    accumulation_steps = total_batch_size // (model.batch_size * model.block_size)
 
+    ! replace softmax by online softmax where possible
     # Make iteration count 1-based for easier modulo calculation
     for steps in range(1, max_steps + 1): 
         _time_at_step_start = time.time()
         # --- Forward Pass ---
         tensor_x, tensor_y = train.get_batch(tensor_train, batch_size=model.batch_size, block_size=model.block_size)
-        # logits: (batch, vocab_size, block_size)
-        logits = model(tensor_x.to(device))
+        # Execute the forward pass and loss computation with torch.autocast
+        # which enables automatic mixed precision,
+        # allowing torch to match each op to appropriate datatype,
+        # yielding gains in network runtime and memory footprint.
+        # Ref: https://docs.pytorch.org/tutorials/recipes/recipes/amp_recipe.html
+        with torch.autocast(device_type=device.type, dtype=torch.bfloat16):
+            # logits: (batch, vocab_size, block_size)
+            logits = model(tensor_x.to(device))
 
-        # Cross-entropy loss is used to measure the difference between the predicted
-        # distribution and the actual distribution of the target token.
-        # The entropy of the correct token should be low,
-        # because the model should be confident in its prediction.
-        #
-        # Calculate loss over all positions
-        # Normalize the loss contribution over accumulation_steps
-        loss_training = model.loss(logits, tensor_y.to(device)) / accumulation_steps
+            # Cross-entropy loss is used to measure the difference between the predicted
+            # distribution and the actual distribution of the target token.
+            # The entropy of the correct token should be low,
+            # because the model should be confident in its prediction.
+            #
+            # Most loss functions reduce the loss by computing its mean over the sample size.
+            # Because we're accumulating the gradient, we want to keep the same behaviour
+            # as if we were computing the gradient for the entire macro batch.
+            # Consequently, we must normalize it over the number of accumulation steps,
+            # so that once we accumulate the losses, the accumulated loss is the same.
+            loss_training = model.loss(logits, tensor_y.to(device)) / accumulation_steps
 
         # --- Backward Pass ---
         loss_training.backward()
+        
+        # Measure time elapsed
+        torch.cuda.synchronize()  # Wait for the GPU to finish the backward pass before timing
         list_of_step_times.append(time.time() - _time_at_step_start)
+        list_of_tokens_per_sec.append(model.block_size * model.batch_size / list_of_step_times[-1])
 
         # Only step optimizer and scheduler after accumulating gradients for accumulation_steps batches
         if steps % accumulation_steps == 0:
@@ -145,6 +174,7 @@ def main():
 
             # --- Logging / Plotting ---
             # Update-to-data ratio
+            tenho de refatorizar isto para ser async ou qq coisa
             for param_group in optimizer.param_groups:
                 for m, p in param_group['named_params'].items():
                     if p.grad is not None:
@@ -167,14 +197,17 @@ def main():
             )
             loss_mean = (loss_training.item() * accumulation_steps + loss_validation) / 2
             list_of_losses.append(loss_mean)
+            ! change nomenclature: iter->step and step->micro_batch?
             print(
-                f"Iter: {steps // accumulation_steps}"
-                f"\tStep: {steps}"
-                f"\tLR: {optimizer.param_groups[0]['lr']:.7f}"
-                f"\tLoss: {loss_mean:.4f}"
-                f"\tMean Time Per Step: {sum(list_of_step_times[-accumulation_steps:]) / accumulation_steps:.3f}"
+                f"iter: {steps // accumulation_steps}"
+                f"\tstep: {steps}"
+                f"\tlr: {optimizer.param_groups[0]['lr']:.7f}"
+                f"\tloss: {loss_mean:.4f}"
+                f"\tmean time/step: {sum(list_of_step_times) / accumulation_steps:.3f}"
+                f"\ttokens/sec: {sum(list_of_tokens_per_sec) / accumulation_steps:.3f}"
             )
             list_of_step_times = []
+            list_of_tokens_per_sec = []
 
             # Perform plotting less frequently if desired
             if (steps // accumulation_steps) % 10 == 0: # Plot every 10 effective batches

@@ -215,12 +215,13 @@ Below are most of the references I used for learning about LLMs.
 WIP
 
 - **2023**. Hendrycks et. Gimpel. *Gaussian Error Linear Units (GELU)*.
-- **2024**. Andrej Karpathy. *Let's reproduce GPT-2 (124M)*. At 1:32:00.
+- **2024**. Andrej Karpathy. *Let's reproduce GPT-2 (124M)*. At 2:47:00.
 - **2023**. Meta AI. *LLaMA: Open and Efficient Foundation Language Models*. At pg 3/27.
 - **2020**. Noah Shazeer. *GLU Variants Improve Transformers*. At 1/5.
 
 ### Fundamentals
 
+- 🌟 **2024**. Umar Jamil. *Flash Attention derived and coded from first principles with Triton (Python)*.
 - **2022**. Andrej Karpathy. *Building makemore Part 4: Becoming a Backprop Ninja*.
 - **2022**. Andrej Karpathy. *The spelled out intro to language modeling: building makemore*.
 - **2022**. Andrej Karpathy. *The spelled out intro to neural networks and backpropagation: building micrograd*.
