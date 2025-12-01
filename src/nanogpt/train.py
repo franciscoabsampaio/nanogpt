@@ -1,5 +1,5 @@
 import torch
-import torch.nn.functional as F
+from .dataset import pad
 
 
 def split_train_test(data: torch.tensor, train_size=0.8) -> tuple[torch.tensor, torch.tensor]:
@@ -7,14 +7,7 @@ def split_train_test(data: torch.tensor, train_size=0.8) -> tuple[torch.tensor, 
     return data[:train_size], data[train_size:]
 
 
-def pad(data: torch.tensor, block_size: int):
-    if len(data) <= block_size:
-        return F.pad(data, (block_size - len(data), 0))
-    else:
-        return data
-
-
-def get_batch(
+def get_random_batch(
     data: torch.tensor,
     batch_size: int  = 4,
     block_size: int = 8
@@ -74,7 +67,7 @@ def loss(tensor_logits: torch.tensor, tensor_y: torch.tensor):
 
 
 @torch.no_grad()
-def estimate_val_loss(
+def estimate_validation_loss(
     model,
     tensor_validation: torch.tensor,
     iterations_for_computing_loss: int,
@@ -83,7 +76,7 @@ def estimate_val_loss(
     model.eval()
     tensor_losses = torch.zeros(iterations_for_computing_loss).to(device)
     for i in range(iterations_for_computing_loss):
-        tensor_x, tensor_y = get_batch(tensor_validation, model.batch_size, model.block_size)
+        tensor_x, tensor_y = get_random_batch(tensor_validation, model.batch_size, model.block_size)
         tensor_logits = model(tensor_x.to(device))
         tensor_losses[i] = model.loss(tensor_logits, tensor_y.to(device))
     model.train()
