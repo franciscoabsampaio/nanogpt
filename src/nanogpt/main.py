@@ -26,7 +26,7 @@ def main():
     # highest: F32
     # high: TF32
     # medium: BF16
-    torch.set_float32_matmul_precision('high')
+    torch.set_float32_matmul_precision('medium')
 
     target_lr = 1e-3
     initial_lr = 1e-5 # Or even 0
@@ -61,11 +61,11 @@ def main():
     model = GPT2(transformer.Config(
         vocabulary_size,
         device,
-        batch_size=4,  # Micro-batch size
+        batch_size=1,  # Micro-batch size
         block_size=1024,
         number_of_blocks=16,
-        number_of_heads=8,
-        channels_embedding=768
+        number_of_heads=16,
+        channels_embedding=1024
     ))
     model.to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
@@ -86,7 +86,7 @@ def main():
             'name': key,
             'named_params': dict(layer[0].named_parameters()),
             'weight_decay': 0.01
-            falta configurar weight decay por parametro com base em dimensionalidade
+            # TODO: configure weight decay per parameter according to dimensionality
         } for key, layer in model.layers_and_learning_rates.items() ],
         betas=(0.9, 0.95)  # Following GPT-3
     )
@@ -97,7 +97,7 @@ def main():
     # Steps, learning rate warm-up
     list_of_step_times = []
     list_of_tokens_per_sec = []
-    steps, warmup_steps, max_steps = 0, 500, 1000 #10_000, 100
+    steps, warmup_steps, max_steps = 0, 1000, 10_000 #10_000, 100
     scheduler_warmup = torch.optim.lr_scheduler.LinearLR(
         optimizer,
         start_factor=initial_lr / target_lr,
@@ -127,7 +127,6 @@ def main():
     )
     accumulation_steps = total_batch_size // (model.batch_size * model.block_size)
 
-    ! replace softmax by online softmax where possible
     # Make iteration count 1-based for easier modulo calculation
     for steps in range(1, max_steps + 1): 
         _time_at_step_start = time.time()
@@ -174,7 +173,6 @@ def main():
 
             # --- Logging / Plotting ---
             # Update-to-data ratio
-            tenho de refatorizar isto para ser async ou qq coisa
             for param_group in optimizer.param_groups:
                 for m, p in param_group['named_params'].items():
                     if p.grad is not None:
@@ -197,7 +195,7 @@ def main():
             )
             loss_mean = (loss_training.item() * accumulation_steps + loss_validation) / 2
             list_of_losses.append(loss_mean)
-            ! change nomenclature: iter->step and step->micro_batch?
+
             print(
                 f"iter: {steps // accumulation_steps}"
                 f"\tstep: {steps}"
